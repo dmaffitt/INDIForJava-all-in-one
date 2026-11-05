@@ -26,3 +26,6 @@ out/
 /gnu-scientific-lib/target
 /server/target
 *.class
+target/
+*.iml
+.idea/

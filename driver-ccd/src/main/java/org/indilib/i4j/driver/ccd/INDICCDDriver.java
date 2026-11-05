@@ -94,8 +94,28 @@ public abstract class INDICCDDriver extends INDIDriver implements INDIConnection
      * the CCD extention, where the real ccd interfacing happens, this is the
      * primary ccd.
      */
+    // The prefix makes the standard property names (CCD_FRAME, CCD_EXPOSURE, ...); the renames keep
+    // the element names the INDI standard fixes without a prefix (X, Y, HOR_BIN, CCD_MAX_X, ...).
     @InjectExtension(prefix = "CCD_", rename = {
-            @Rename(name = "CCD", to = "CCD1")
+            @Rename(name = "CCD", to = "CCD1"),
+            @Rename(name = "X", to = "X"),
+            @Rename(name = "Y", to = "Y"),
+            @Rename(name = "WIDTH", to = "WIDTH"),
+            @Rename(name = "HEIGHT", to = "HEIGHT"),
+            @Rename(name = "FRAME_LIGHT", to = "FRAME_LIGHT"),
+            @Rename(name = "FRAME_TRI_COLOR", to = "FRAME_TRI_COLOR"),
+            @Rename(name = "FRAME_BIAS", to = "FRAME_BIAS"),
+            @Rename(name = "FRAME_DARK", to = "FRAME_DARK"),
+            @Rename(name = "FRAME_FLAT", to = "FRAME_FLAT"),
+            @Rename(name = "ABORT", to = "ABORT"),
+            @Rename(name = "HOR_BIN", to = "HOR_BIN"),
+            @Rename(name = "VER_BIN", to = "VER_BIN"),
+            @Rename(name = "CCD_MAX_X", to = "CCD_MAX_X"),
+            @Rename(name = "CCD_MAX_Y", to = "CCD_MAX_Y"),
+            @Rename(name = "CCD_PIXEL_SIZE", to = "CCD_PIXEL_SIZE"),
+            @Rename(name = "CCD_PIXEL_SIZE_X", to = "CCD_PIXEL_SIZE_X"),
+            @Rename(name = "CCD_PIXEL_SIZE_Y", to = "CCD_PIXEL_SIZE_Y"),
+            @Rename(name = "CCD_BITSPERPIXEL", to = "CCD_BITSPERPIXEL")
     })
     protected INDICCDDriverExtension primaryCCD;
     /**
@@ -103,7 +123,25 @@ public abstract class INDICCDDriver extends INDIDriver implements INDIConnection
      * the guider ccd.
      */
     @InjectExtension(prefix = "GUIDER_", rename = {
-            @Rename(name = "CCD", to = "CCD2")
+            @Rename(name = "CCD", to = "CCD2"),
+            @Rename(name = "X", to = "X"),
+            @Rename(name = "Y", to = "Y"),
+            @Rename(name = "WIDTH", to = "WIDTH"),
+            @Rename(name = "HEIGHT", to = "HEIGHT"),
+            @Rename(name = "FRAME_LIGHT", to = "FRAME_LIGHT"),
+            @Rename(name = "FRAME_TRI_COLOR", to = "FRAME_TRI_COLOR"),
+            @Rename(name = "FRAME_BIAS", to = "FRAME_BIAS"),
+            @Rename(name = "FRAME_DARK", to = "FRAME_DARK"),
+            @Rename(name = "FRAME_FLAT", to = "FRAME_FLAT"),
+            @Rename(name = "ABORT", to = "ABORT"),
+            @Rename(name = "HOR_BIN", to = "HOR_BIN"),
+            @Rename(name = "VER_BIN", to = "VER_BIN"),
+            @Rename(name = "CCD_MAX_X", to = "CCD_MAX_X"),
+            @Rename(name = "CCD_MAX_Y", to = "CCD_MAX_Y"),
+            @Rename(name = "CCD_PIXEL_SIZE", to = "CCD_PIXEL_SIZE"),
+            @Rename(name = "CCD_PIXEL_SIZE_X", to = "CCD_PIXEL_SIZE_X"),
+            @Rename(name = "CCD_PIXEL_SIZE_Y", to = "CCD_PIXEL_SIZE_Y"),
+            @Rename(name = "CCD_BITSPERPIXEL", to = "CCD_BITSPERPIXEL")
     })
     protected INDICCDDriverExtension guiderCCD;
     /**

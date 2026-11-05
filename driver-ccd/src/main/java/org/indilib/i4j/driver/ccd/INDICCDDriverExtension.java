@@ -156,7 +156,7 @@ public class INDICCDDriverExtension extends INDIDriverExtension<INDICCDDriver> {
      * The exposure time of the next image in seconds, a new value will also
      * start the exposure.
      */
-    @InjectElement(name = "CCD_EXPOSURE_VALUE", label = "Duration (s)", numberValue = 1, maximum = 36000, numberFormat = "%5.2f")
+    @InjectElement(name = "EXPOSURE_VALUE", label = "Duration (s)", numberValue = 1, maximum = 36000, numberFormat = "%5.2f")
     protected INDINumberElement imageExposureDuration;
 
     /**
@@ -194,7 +194,7 @@ public class INDICCDDriverExtension extends INDIDriverExtension<INDICCDDriver> {
     /**
      * Some information about the ccd sensor itself.
      */
-    @InjectProperty(name = "CCD_INFO", label = "CCD Information", group = INDICCDDriver.IMAGE_INFO_TAB, permission = PropertyPermissions.RO)
+    @InjectProperty(name = "INFO", label = "CCD Information", group = INDICCDDriver.IMAGE_INFO_TAB, permission = PropertyPermissions.RO)
     protected INDINumberProperty imagePixelSize;
 
     /**

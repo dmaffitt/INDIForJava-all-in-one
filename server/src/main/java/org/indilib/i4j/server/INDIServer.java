@@ -178,7 +178,7 @@ public final class INDIServer implements INDIServerInterface {
                 if (!Modifier.isAbstract(subclass.flags())) {
                     try {
                         Class<?> clazz = Thread.currentThread().getContextClassLoader().loadClass(subclass.name().toString());
-                        if (clazz.isInstance(INDIDriver.class)) loadJavaDriver(clazz);
+                        if (INDIDriver.class.isAssignableFrom(clazz)) loadJavaDriver(clazz);
                     } catch (Exception e) {
                         throw new INDIException("could not load diver class " + subclass.toString(), e);
                     }

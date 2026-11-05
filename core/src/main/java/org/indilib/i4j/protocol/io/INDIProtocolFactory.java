@@ -76,6 +76,8 @@ public final class INDIProtocolFactory {
             }
         };
         XSTREAM = new XStream(STREAM_DRIVER);
+        // XStream 1.4.18+ refuses to deserialize classes outside its allow-list.
+        XSTREAM.allowTypesByWildcard(new String[]{"org.indilib.i4j.protocol.**"});
         XSTREAM.processAnnotations(new Class<?>[]{
                 DefBlob.class,
                 DefBlobVector.class,

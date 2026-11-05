@@ -153,18 +153,26 @@ public abstract class INDICCDImage {
      * @throws HeaderCardException if the header got illegal
      */
     private void addFitsAttributes(BasicHDU<?> imageFits) throws HeaderCardException {
-        imageFits.addValue(HISTORY, "FITS image created by i4j");
-        imageFits.addValue(SIMPLE, "T");
+        // The data array is flat, so the HDU factory describes it as one axis; declare the real shape.
+        // NAXIS1 is the fastest-varying axis, which is x (width): pixels are stored row by row.
+        imageFits.getHeader().insertHistory("FITS image created by i4j");
+        imageFits.addValue(SIMPLE, true);
         imageFits.addValue(BITPIX, bpp);
         imageFits.addValue(NAXIS, type == ImageType.COLOR ? COLOR_SCALE_NAXIS : GRAY_SCALE_NAXIS);
-        imageFits.addValue(NAXISn.n(1), height);
-        imageFits.addValue(NAXISn.n(2), width);
+        imageFits.addValue(NAXISn.n(1), width);
+        imageFits.addValue(NAXISn.n(2), height);
         if (type == ImageType.COLOR) {
             imageFits.addValue(NAXISn.n(3), COLOR_AXIS3);
         }
+        // 16-bit samples are stored as signed shorts offset by -32768; BZERO lets readers recover the unsigned values.
+        int offset = this instanceof INDI16BitCCDImage ? -Short.MIN_VALUE : 0;
+        if (offset != 0) {
+            imageFits.addValue(BZERO, (double) offset);
+            imageFits.addValue(BSCALE, 1.0);
+        }
         if (maxPixelValue > minPixelValue) {
-            imageFits.addValue(DATAMAX, maxPixelValue);
-            imageFits.addValue(DATAMIN, minPixelValue);
+            imageFits.addValue(DATAMAX, maxPixelValue + offset);
+            imageFits.addValue(DATAMIN, minPixelValue + offset);
         }
         if (extraFitsHeaders != null) {
             for (Entry<String, Object> header : extraFitsHeaders.entrySet()) {
