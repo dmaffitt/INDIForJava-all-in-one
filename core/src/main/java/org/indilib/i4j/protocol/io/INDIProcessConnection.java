@@ -29,9 +29,12 @@ import org.indilib.i4j.protocol.url.INDIURLStreamHandlerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URI;
 
 /**
  * This class implements an indi protocol connector to an other process. the in
@@ -71,10 +74,27 @@ public class INDIProcessConnection implements INDIConnection {
      */
     public INDIProcessConnection(Process process) {
         this.process = process;
+        Thread errorReader = new Thread(this::logErrorStream, "process stderr " + process.pid());
+        errorReader.setDaemon(true);
+        errorReader.start();
+    }
+
+    /**
+     * log the error stream of the process, if nobody reads it the process
+     * blocks as soon as the pipe buffer is full.
+     */
+    private void logErrorStream() {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+            for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                LOG.info("[" + process.pid() + "] " + line);
+            }
+        } catch (IOException e) {
+            LOG.debug("error stream of process " + process.pid() + " closed", e);
+        }
     }
 
     @Override
-    public INDIInputStream getINDIInputStream() throws IOException {
+    public synchronized INDIInputStream getINDIInputStream() throws IOException {
         if (inputStream == null) {
             inputStream = INDIProtocolFactory.createINDIInputStream(process.getInputStream());
         }
@@ -82,8 +102,8 @@ public class INDIProcessConnection implements INDIConnection {
     }
 
     @Override
-    public INDIOutputStream getINDIOutputStream() throws IOException {
-        if (inputStream == null) {
+    public synchronized INDIOutputStream getINDIOutputStream() throws IOException {
+        if (outputStream == null) {
             outputStream = INDIProtocolFactory.createINDIOutputStream(process.getOutputStream());
         }
         return outputStream;
@@ -91,13 +111,19 @@ public class INDIProcessConnection implements INDIConnection {
 
     @Override
     public void close() throws IOException {
-
+        // closing stdin signals the end of input to the process, closing stdout
+        // ends the reader.
+        try {
+            process.getOutputStream().close();
+        } finally {
+            process.getInputStream().close();
+        }
     }
 
     @Override
     public URL getURL() {
         try {
-            return new URL("indi:///?process=" + process.toString());
+            return URI.create("indi:///?process=" + process.pid()).toURL();
         } catch (MalformedURLException e) {
             LOG.error("illegal std url, should never happen!", e);
             return null;

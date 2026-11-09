@@ -83,22 +83,80 @@
             <extension>
                 <groupId>org.apache.maven.wagon</groupId>
                 <artifactId>wagon-ssh</artifactId>
-                <version>${org.apache.maven.wagon.wagon-ssh.version}</version>
+                <version>${wagon-ssh.version}</version>
             </extension>
         </extensions>
+        <pluginManagement>
+            <plugins>
+                <!-- pin the lifecycle plugins, so the build does not depend on the maven version defaults -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.6.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>3.2.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.2.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-project-info-reports-plugin</artifactId>
+                    <version>3.9.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.7.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-build-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>[${java.release},)</version>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
+                <version>3.16.0</version>
                 <configuration>
-                    <release>17</release>
+                    <release>${java.release}</release>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.11.2</version>
+                <version>${javadoc-plugin.version}</version>
                 <configuration>
                     <skip>${i4j.nonjavamodule}</skip>
                     <failOnError>false</failOnError>
@@ -116,7 +174,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
+                <version>3.5.1</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -128,15 +186,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>2.5.1</version>
-                <configuration>
-                    <mavenExecutorId>forked-path</mavenExecutorId>
-                </configuration>
+                <version>3.3.1</version>
             </plugin>
             <plugin>
                 <groupId>io.smallrye</groupId>
                 <artifactId>jandex-maven-plugin</artifactId>
-                <version>3.2.7</version>
+                <version>${jandex.version}</version>
                 <executions>
                     <execution>
                         <id>make-index</id>
@@ -147,68 +202,16 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.tinyjee.dim</groupId>
-                <artifactId>doxia-include-macro</artifactId>
-                <version>1.1</version>
-                <executions>
-                    <execution>
-                        <id>initialize-doxia-include-macro</id>
-                        <phase>pre-site</phase>
-                        <goals>
-                            <goal>initialize</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
-                <version>3.4</version>
-                <configuration>
-                    <chmod>false</chmod>
-                </configuration>
+                <version>3.22.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.apache.maven.wagon</groupId>
                         <artifactId>wagon-ssh</artifactId>
-                        <version>${org.apache.maven.wagon.wagon-ssh.version}</version>
-                    </dependency>
-                    <dependency>
-                        <groupId>org.tinyjee.dim</groupId>
-                        <artifactId>doxia-include-macro</artifactId>
-                        <version>1.1</version>
+                        <version>${wagon-ssh.version}</version>
                     </dependency>
                 </dependencies>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>2.13</version>
-            </plugin>
-            <plugin>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
-                <executions>
-                    <execution>
-                        <id>copy-site-resources</id>
-                        <!-- fetch site.xml before creating site documentation -->
-                        <phase>pre-site</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${basedir}/target/site/</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>${site.basedir}/src/site/resources/</directory>
-                                    <includes>
-                                        <include>**/*</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
@@ -217,16 +220,16 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>2.13</version>
+                <version>3.6.0</version>
                 <configuration>
                     <configLocation>${site.basedir}/src/main/checkstyle/i4j-style.xml</configLocation>
                     <suppressionsLocation>${site.basedir}/src/main/checkstyle/checkstyle-suppressions.xml
                     </suppressionsLocation>
                     <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
-                    <encoding>UTF-8</encoding>
+                    <inputEncoding>UTF-8</inputEncoding>
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>false</failsOnError>
-                    <linkXRef>true</linkXRef>
+                    <linkXRef>false</linkXRef>
                 </configuration>
                 <reportSets>
                     <reportSet>
@@ -247,11 +250,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.10.1</version>
+                <version>${javadoc-plugin.version}</version>
                 <configuration>
                     <failOnError>false</failOnError>
                     <skip>${i4j.nonjavamodule}</skip>
-                    <aggregate>false</aggregate>
+                    <doclint>none</doclint>
                 </configuration>
                 <reportSets>
                     <reportSet><!-- by default, id = "default" -->
@@ -272,7 +275,6 @@
         <module>driver-ccd</module>
         <module>driver-filterwheel</module>
         <module>driver-focuser</module>
-        <module>driver-raspberrypigpio</module>
         <module>driver-serial-extension</module>
         <module>driver-telescope</module>
         <module>fits-utils</module>
@@ -283,12 +285,12 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.30</version>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>1.7.30</version>
+            <version>${slf4j.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -297,9 +299,13 @@
         <project.scm.id>i4j-deploy</project.scm.id>
         <site.basedir>${project.basedir}</site.basedir>
         <i4j.nonjavamodule>true</i4j.nonjavamodule>
-        <org.apache.maven.wagon.wagon-ssh.version>2.8</org.apache.maven.wagon.wagon-ssh.version>
-        <org.codehaus.mojo.wagon-maven-plugin.version>1.0</org.codehaus.mojo.wagon-maven-plugin.version>
+        <!-- reproducible builds: the release plugin updates this on each release -->
+        <project.build.outputTimestamp>2026-11-09T00:00:00Z</project.build.outputTimestamp>
+        <java.release>25</java.release>
+        <slf4j.version>2.0.20</slf4j.version>
+        <jandex.version>3.6.1</jandex.version>
+        <tyrus.version>2.2.2</tyrus.version>
+        <javadoc-plugin.version>3.12.0</javadoc-plugin.version>
+        <wagon-ssh.version>3.5.3</wagon-ssh.version>
     </properties>
-    <profiles>
-    </profiles>
 </project>

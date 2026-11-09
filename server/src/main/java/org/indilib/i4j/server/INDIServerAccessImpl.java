@@ -35,34 +35,57 @@ import org.indilib.i4j.server.api.INDIServerInterface;
 public class INDIServerAccessImpl implements INDIServerAccess {
 
     /**
+     * Guards the server, the service loader may create more than one instance
+     * of this class.
+     */
+    private static final Object LOCK = new Object();
+
+    /**
      * The currently running indi server.
      */
     private static INDIServerInterface server;
 
     @Override
     public INDIServerInterface createOrGet(String host, Integer port) {
-        if (!isRunning()) server = new INDIServer(port);
-        return server;
+        synchronized (LOCK) {
+            if (!isRunning()) {
+                server = new INDIServer(port);
+            }
+            return server;
+        }
     }
 
     @Override
     public INDIServerInterface get() {
-        return server;
+        synchronized (LOCK) {
+            return server;
+        }
     }
 
     @Override
     public INDIServerInterface restart(String host, int port) {
-        if (isRunning()) server.stopServer();
-        return createOrGet(host, port);
+        synchronized (LOCK) {
+            if (server != null) {
+                server.stopServer();
+            }
+            server = new INDIServer(port);
+            return server;
+        }
     }
 
     @Override
     public boolean isRunning() {
-        return (server != null) && server.isServerRunning();
+        synchronized (LOCK) {
+            return (server != null) && server.isServerRunning();
+        }
     }
 
     @Override
     public void stop() {
-        if (isRunning()) server.stopServer();
+        synchronized (LOCK) {
+            if (server != null) {
+                server.stopServer();
+            }
+        }
     }
 }

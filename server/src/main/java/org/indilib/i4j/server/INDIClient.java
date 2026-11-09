@@ -60,7 +60,7 @@ public class INDIClient extends INDIDeviceListener implements INDIClientInterfac
     /**
      * The socket to communicate with the Client.
      */
-    private INDIConnection connection;
+    private volatile INDIConnection connection;
 
     /**
      * Constructs a new INDIClient that connects to the server and starts
@@ -149,8 +149,12 @@ public class INDIClient extends INDIDeviceListener implements INDIClientInterfac
 
     @Override
     protected void sendXMLMessage(INDIProtocol<?> message) {
+        INDIConnection current = connection;
+        if (current == null) {
+            return; // already disconnected
+        }
         try {
-            connection.getINDIOutputStream().writeObject(message);
+            current.getINDIOutputStream().writeObject(message);
         } catch (Exception e) {
             LOG.warn("could not send xml message to client, disconnecting client", e);
             disconnect();
@@ -163,10 +167,10 @@ public class INDIClient extends INDIDeviceListener implements INDIClientInterfac
      * @param xml xml message
      */
     private void processEnableBLOB(EnableBLOB xml) {
-        if (!xml.hasDevice()) {
+        if (!xml.hasDevice() || xml.getTextContent() == null) {
             return;
         }
-        String rule = xml.getTextContent();
+        String rule = xml.getTextContent().trim();
         BLOBEnables enable;
 
         try {
@@ -195,17 +199,11 @@ public class INDIClient extends INDIDeviceListener implements INDIClientInterfac
      * @param xml the xml messge.
      */
     private void processNewXXXVector(NewVector<?> xml) {
-        String device = xml.getDevice();
-        if (device.isEmpty()) {
+        if (!xml.hasDevice() || !xml.hasName()) {
             return;
         }
 
-        String property = xml.getName().trim();
-        if (property.isEmpty()) {
-            return;
-        }
-
-        if (this.listensToProperty(device, property)) { // If this client does
+        if (this.listensToProperty(xml.getDevice(), xml.getName().trim())) { // If this client does
             // not listen to the
             // property avoid
             // changing it

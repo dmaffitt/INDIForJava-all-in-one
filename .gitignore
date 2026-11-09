@@ -20,7 +20,6 @@ out/
 /driver-filterwheel/target
 /driver-ccd/target
 /driver-focuser/target
-/driver-raspberrypigpio/target
 /driver-telescope/target
 /fits-utils/target
 /gnu-scientific-lib/target

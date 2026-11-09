@@ -27,6 +27,7 @@ import jakarta.websocket.Endpoint;
 import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.Session;
 import org.glassfish.tyrus.client.ClientManager;
+import org.glassfish.tyrus.container.jdk.client.JdkClientContainer;
 import org.indilib.i4j.protocol.api.INDIConnection;
 import org.indilib.i4j.protocol.api.INDIInputStream;
 import org.indilib.i4j.protocol.api.INDIOutputStream;
@@ -79,17 +80,19 @@ public class INDIWebsocketURLConnection extends URLConnection implements INDICon
             try {
                 final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
 
-                ClientManager client = ClientManager.createClient();
-                Session session = client.connectToServer(new Endpoint() {
+                ClientManager client = ClientManager.createClient(JdkClientContainer.class.getName());
+                // the connection is created in onOpen, which runs before
+                // connectToServer returns; a second one would register a
+                // second message handler on the session, which is refused.
+                client.connectToServer(new Endpoint() {
 
                     @Override
                     public void onOpen(Session session, EndpointConfig config) {
                         socketConnection = new INDIWebSocketConnection(session);
                     }
                 }, cec, new URI(getURL().toExternalForm().replace(INDIWebSocketStreamHandler.PROTOCOL + ":", "ws:")));
-                socketConnection = new INDIWebSocketConnection(session);
             } catch (Exception e) {
-                LOG.error("could not connect to websocket", e);
+                throw new IOException("could not connect to websocket " + getURL(), e);
             }
         }
     }

@@ -28,8 +28,6 @@ import org.indilib.i4j.protocol.url.INDIURLStreamHandlerFactory;
 
 import java.io.Writer;
 import java.lang.reflect.Field;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 
 /**
  * Print writer for xml output where all elements get an end tag. even if the
@@ -57,10 +55,7 @@ final class Printwriter extends PrettyPrintWriter {
         super(writer, XML_QUIRKS, new char[0], new XmlFriendlyNameCoder());
         try {
             tagIsEmpty = PrettyPrintWriter.class.getDeclaredField("tagIsEmpty");
-            AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-                tagIsEmpty.setAccessible(true);
-                return null;
-            });
+            tagIsEmpty.setAccessible(true);
         } catch (Exception e) {
             throw new IllegalStateException("this should not happen, did the super class change?", e);
         }

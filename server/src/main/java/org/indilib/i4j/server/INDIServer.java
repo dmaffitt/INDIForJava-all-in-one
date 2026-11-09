@@ -174,11 +174,19 @@ public final class INDIServer implements INDIServerInterface {
     public synchronized void loadJavaDriversFromJAR(String jarFileName) throws INDIException {
         IndexView jarIndex = Util.extendClasspath(new File(jarFileName));
         if (jarIndex != null) {
-            for (ClassInfo subclass : jarIndex.getAllKnownSubclasses(DotName.createSimple(INDIDriver.class.getName()))) {
-                if (!Modifier.isAbstract(subclass.flags())) {
+            // search the whole index, drivers may extend driver classes from other jars.
+            for (ClassInfo subclass : Util.classPathIndex().getAllKnownSubclasses(DotName.createSimple(INDIDriver.class.getName()))) {
+                if (!Modifier.isAbstract(subclass.flags()) && jarIndex.getClassByName(subclass.name()) != null) {
                     try {
-                        Class<?> clazz = Thread.currentThread().getContextClassLoader().loadClass(subclass.name().toString());
-                        if (INDIDriver.class.isAssignableFrom(clazz)) loadJavaDriver(clazz);
+                        Class<?> clazz = Util.driverClassLoader().loadClass(subclass.name().toString());
+                        if (!INDIDriver.class.isAssignableFrom(clazz)) {
+                            continue;
+                        }
+                        if (isAlreadyLoaded(DRIVER_CLASS_ID_PREFIX + clazz.getName())) {
+                            LOG.info("Java driver " + clazz.getName() + " already loaded");
+                        } else {
+                            loadJavaDriver(clazz);
+                        }
                     } catch (Exception e) {
                         throw new INDIException("could not load diver class " + subclass.toString(), e);
                     }
@@ -222,9 +230,27 @@ public final class INDIServer implements INDIServerInterface {
 
     @Override
     public void stopServer() {
-        // Close the socket in order to avoid accepting new connections
+        // Close the sockets in order to avoid accepting new connections
         if (baseAcceptor != null) {
             baseAcceptor.close();
+        }
+        synchronized (additionalAcceptors) {
+            for (INDIServerAcceptor acceptor : additionalAcceptors) {
+                try {
+                    acceptor.close();
+                } catch (Exception e) {
+                    LOG.warn("problem closing acceptor " + acceptor.getName(), e);
+                }
+            }
+            additionalAcceptors.clear();
+        }
+        // Stop the drivers, native driver processes would outlive the server
+        for (INDIDevice device : staticCopyOfDevices()) {
+            try {
+                device.destroy();
+            } catch (Exception e) {
+                LOG.warn("problem destroying device " + device, e);
+            }
         }
         for (INDIDeviceListener indiDeviceListener : staticCopyOfClients()) {
             if (indiDeviceListener instanceof INDIClient) {
@@ -444,6 +470,9 @@ public final class INDIServer implements INDIServerInterface {
      * @param xml    The message
      */
     protected void notifyDeviceListenersDefXXXVector(INDIDevice device, INDIProtocol<?> xml) {
+        if (!xml.hasDevice() || !xml.hasName()) {
+            return;
+        }
         String deviceName = xml.getDevice();
         String propertyName = xml.getName().trim();
         for (INDIDeviceListener c : getClientsListeningToProperty(deviceName, propertyName)) {
@@ -471,12 +500,11 @@ public final class INDIServer implements INDIServerInterface {
      * @param xml    The message
      */
     protected void notifyDeviceListenersMessage(INDIDevice device, INDIProtocol<?> xml) {
-        String deviceName = xml.getDevice();
-
-        if (deviceName.isEmpty()) {
+        // the device attribute is optional for messages, without it the message is global.
+        if (!xml.hasDevice()) {
             sendXMLMessageToAllClients(xml);
         } else {
-            for (INDIDeviceListener c : getClientsListeningToDevice(deviceName)) {
+            for (INDIDeviceListener c : getClientsListeningToDevice(xml.getDevice())) {
                 c.sendXMLMessage(xml);
             }
         }
@@ -489,6 +517,9 @@ public final class INDIServer implements INDIServerInterface {
      * @param xml    The message
      */
     protected void notifyDeviceListenersSetXXXVector(INDIDevice device, INDIProtocol<?> xml) {
+        if (!xml.hasDevice() || !xml.hasName()) {
+            return;
+        }
         String deviceName = xml.getDevice();
         String propertyName = xml.getName().trim();
 
@@ -673,7 +704,7 @@ public final class INDIServer implements INDIServerInterface {
         String driverClassName = findDriverClassByName(className);
         Class<?> driverClass;
         try {
-            driverClass = Thread.currentThread().getContextClassLoader().loadClass(driverClassName);
+            driverClass = Util.driverClassLoader().loadClass(driverClassName);
         } catch (Exception e) {
             throw new INDIException("Could not create driver" + className, e);
         }
@@ -687,7 +718,11 @@ public final class INDIServer implements INDIServerInterface {
      * @throws INDIException If there is any problem instantiating the Driver.
      */
     public synchronized void loadJavaDriver(Class<?> cls) throws INDIException {
-        loadJavaDriver(cls, DRIVER_CLASS_ID_PREFIX + cls.getName());
+        String identifier = DRIVER_CLASS_ID_PREFIX + cls.getName();
+        if (isAlreadyLoaded(identifier)) {
+            throw new INDIException("Java driver " + cls.getName() + " already loaded.");
+        }
+        loadJavaDriver(cls, identifier);
     }
 
     /**
@@ -700,7 +735,17 @@ public final class INDIServer implements INDIServerInterface {
      * @throws INDIException If there is any problem instantiating the Driver.
      */
     private synchronized void loadJavaDriver(Class<?> cls, String identifier) throws INDIException {
-        INDIJavaDevice newDevice = new INDIJavaDevice(this, cls, identifier);
+        // drivers look up services with the context class loader, and the
+        // threads they start inherit it, so it must see the driver's jar.
+        Thread thread = Thread.currentThread();
+        ClassLoader previous = thread.getContextClassLoader();
+        INDIJavaDevice newDevice;
+        thread.setContextClassLoader(cls.getClassLoader());
+        try {
+            newDevice = new INDIJavaDevice(this, cls, identifier);
+        } finally {
+            thread.setContextClassLoader(previous);
+        }
 
         addDevice(newDevice);
     }
@@ -743,12 +788,19 @@ public final class INDIServer implements INDIServerInterface {
 
     @Override
     public void activateAcceptor(String name, Object... arguments) {
+        boolean found = false;
         for (INDIServerAcceptor indiServerAcceptor : ServiceLoader.load(INDIServerAcceptor.class)) {
             if (indiServerAcceptor.getName().equalsIgnoreCase(name)) {
-                additionalAcceptors.add(indiServerAcceptor);
+                found = true;
+                synchronized (additionalAcceptors) {
+                    additionalAcceptors.add(indiServerAcceptor);
+                }
                 indiServerAcceptor.setArguments(arguments);
                 indiServerAcceptor.start();
             }
+        }
+        if (!found) {
+            LOG.warn("No acceptor named " + name + " is available");
         }
     }
 
@@ -789,9 +841,11 @@ public final class INDIServer implements INDIServerInterface {
         if (baseAcceptor.isLocalURL(url)) {
             return true;
         }
-        for (INDIServerAcceptor acceptor : additionalAcceptors) {
-            if (acceptor.isLocalURL(url)) {
-                return true;
+        synchronized (additionalAcceptors) {
+            for (INDIServerAcceptor acceptor : additionalAcceptors) {
+                if (acceptor.isLocalURL(url)) {
+                    return true;
+                }
             }
         }
         return false;

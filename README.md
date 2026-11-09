@@ -45,9 +45,10 @@ Coming soon...
 
 ### Required build tools
 
-- IntelliJ IDEA 2020.3 or greater
-- The Gradle IntelliJ plugin
-- Java Development Kit ≥8
+- Java Development Kit ≥25
+- Apache Maven ≥3.9
+
+Build and install all modules with `mvn install`.
 
 ### Dependencies
 
@@ -58,13 +59,12 @@ Coming soon...
   , [Apache 2.0 license](https://github.com/apache/commons-codec/blob/master/LICENSE.txt)
 - [nom-tam-fits](https://github.com/nom-tam-fits/nom-tam-fits)
   , [public domain](http://nom-tam-fits.github.io/nom-tam-fits/license.html)
-- [Pi4J](https://pi4j.com/1.2/index.html), [LGPL 3.0 license](https://pi4j.com/1.2/license.html)
 - [jssc](https://github.com/java-native/jssc) by
   java-native, [LGPL 3.0 license](https://github.com/java-native/jssc/blob/master/LICENSE.txt)
 - [Quickhull3d](https://github.com/Quickhull3d/quickhull3d)
   , [BSD 2-Clause "Simplified" License](https://github.com/Quickhull3d/quickhull3d/blob/master/LICENSE.txt)
-- [JBoss Jandex](https://github.com/wildfly/jandex)
-  , [Apache 2.0 license](https://github.com/wildfly/jandex/blob/master/LICENSE.txt)
+- [SmallRye Jandex](https://github.com/smallrye/jandex)
+  , [Apache 2.0 license](https://github.com/smallrye/jandex/blob/main/LICENSE)
 
 ### Library modules
 
@@ -76,7 +76,6 @@ Coming soon...
 - `driver-focuser`: a telescope abstract driver.
 - `driver-ccd`: a telescope abstract driver.
 - `driver-filterwheel`: a telescope abstract driver.
-- `driver-raspberrypigpio`: an example driver that can control Raspberry Pi GPIOs.
 - `driver-active-extension`: a driver extension used to create active drivers (drivers that can manage other drivers on
   the same server).
 - `driver-serial-extension`: a driver extension that provides support for serial ports.

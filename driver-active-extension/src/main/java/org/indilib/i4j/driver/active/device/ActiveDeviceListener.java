@@ -29,6 +29,8 @@ import org.indilib.i4j.properties.INDIDeviceDescriptor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Listen to newly coming properties and try to determine the type of device
@@ -159,9 +161,9 @@ public class ActiveDeviceListener implements INDIDeviceListener, INDIPropertyLis
         String value = activeDevicesElement.getValue();
         if (value.indexOf(':') >= 0) {
             try {
-                String device = ActiveDeviceExtension.getDeviceFromUrl(new URL(value));
+                String device = ActiveDeviceExtension.getDeviceFromUrl(new URI(value).toURL());
                 return indiDevice.getName().equals(device);
-            } catch (MalformedURLException e) {
+            } catch (MalformedURLException | URISyntaxException | IllegalArgumentException e) {
                 return false;
             }
         } else {

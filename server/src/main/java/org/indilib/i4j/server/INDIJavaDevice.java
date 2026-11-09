@@ -34,8 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A class that represent a Java Device (created with the INDI Driver library).
@@ -88,7 +88,7 @@ public class INDIJavaDevice extends INDIDevice {
         super(server);
 
         // name = null;
-        names = new ArrayList<>();
+        names = new CopyOnWriteArrayList<>();
         this.identifier = identifier;
         this.driverClass = driverClass;
 
@@ -152,11 +152,15 @@ public class INDIJavaDevice extends INDIDevice {
      *
      * @param deviceIdentifier The Device Identifier to check.
      * @return <code>true</code> if the Device corresponds to the Device
-     * Identifier (that is, is in the jar file).
+     * Identifier: the identifier it was loaded with, its full device
+     * identifier or its driver class name.
      */
     @Override
     public boolean isDevice(String deviceIdentifier) {
-        return getDeviceIdentifier().startsWith(deviceIdentifier);
+        // exact matches only, a prefix match would also match other drivers
+        // whose class name starts with the same characters.
+        return identifier.equals(deviceIdentifier) || getDeviceIdentifier().equals(deviceIdentifier)
+                || driverClass.getName().equals(deviceIdentifier);
     }
 
     /**

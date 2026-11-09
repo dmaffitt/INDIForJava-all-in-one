@@ -37,6 +37,8 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 
@@ -107,7 +109,9 @@ public class INDIWebSocketConnection implements INDIConnection {
         final PipedOutputStream bytesOut = new PipedOutputStream(bytesIn);
 
         inputStream = INDIProtocolFactory.createINDIInputStream(bytesIn);
-        session.addMessageHandler((MessageHandler.Partial<byte[]>) (message, last) -> {
+        // the message type must be given explicitly, it can not be determined
+        // from a lambda by reflection.
+        session.addMessageHandler(byte[].class, (MessageHandler.Partial<byte[]>) (message, last) -> {
             try {
                 bytesOut.write(message);
                 bytesOut.flush();
@@ -174,9 +178,11 @@ public class INDIWebSocketConnection implements INDIConnection {
 
     @Override
     public URL getURL() {
+        // the session uses the ws scheme, which has no url handler.
+        URI uri = session.getRequestURI();
         try {
-            return session.getRequestURI().toURL();
-        } catch (MalformedURLException e) {
+            return new URI(INDIWebSocketStreamHandler.PROTOCOL, uri.getUserInfo(), uri.getHost(), uri.getPort(), uri.getPath(), uri.getQuery(), null).toURL();
+        } catch (MalformedURLException | URISyntaxException e) {
             LOG.error("illegal std url, should never happen!", e);
             return null;
         }

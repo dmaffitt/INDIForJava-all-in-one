@@ -37,6 +37,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import static org.indilib.i4j.INDIDateFormat.dateFormat;
 
@@ -91,8 +93,8 @@ public class INDIServerConnection implements INDIProtocolParser {
         if ((port < 0) || (port > 0xFFFF))
             throw new IllegalArgumentException("Invalid port");
         try {
-            indiUrl = new URL(INDIURLStreamHandler.PROTOCOL, host, port, "/");
-        } catch (MalformedURLException e) {
+            indiUrl = new URI(INDIURLStreamHandler.PROTOCOL, null, host, port, "/", null, null).toURL();
+        } catch (MalformedURLException | URISyntaxException e) {
             throw new IllegalArgumentException("illegal indi url", e);
         }
     }
@@ -129,7 +131,7 @@ public class INDIServerConnection implements INDIProtocolParser {
      */
     private static INDIConnection openConnection(String uri) {
         try {
-            return (INDIConnection) new URL(uri).openConnection();
+            return (INDIConnection) new URI(uri).toURL().openConnection();
         } catch (Exception e) {
             throw new IllegalArgumentException("the specified uri is not a legal indi url", e);
         }

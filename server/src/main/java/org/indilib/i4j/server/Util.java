@@ -22,18 +22,25 @@ package org.indilib.i4j.server;
  * #L%
  */
 
-import org.jboss.jandex.*;
+import org.jboss.jandex.CompositeIndex;
+import org.jboss.jandex.Index;
+import org.jboss.jandex.IndexView;
+import org.jboss.jandex.Indexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.lang.reflect.Method;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * Utility class for classpath and url funktions.
@@ -51,13 +58,19 @@ public final class Util {
      */
     private static final String SCHEME_FILE = "file";
     /**
+     * the class loader for driver jars and directories added at runtime. Since
+     * java 9 the system class loader is no URLClassLoader any more, so it can
+     * not be extended.
+     */
+    private static final DriverClassLoader DRIVER_CLASS_LOADER = new DriverClassLoader(Util.class.getClassLoader());
+    /**
+     * the jandex indexes of the jars and directories added at runtime.
+     */
+    private static final List<IndexView> EXTENSION_INDEXES = new ArrayList<>();
+    /**
      * the classpath jandex index.
      */
     private static IndexView classPathIndex;
-    /**
-     * the number of entries in the system classpath (to check if they changed).
-     */
-    private static int nrOfSystemClasspathEntries;
 
     /**
      * private accessor for utility class.
@@ -94,64 +107,103 @@ public final class Util {
     }
 
     /**
-     * @return the current classpath jandex index.
+     * @return the class loader that loads the classpath and all jars or
+     * directories added with {@link #extendClasspath(File)}.
      */
-    protected static IndexView classPathIndex() {
-        URLClassLoader loader = (URLClassLoader) ClassLoader.getSystemClassLoader();
-        if (classPathIndex == null || nrOfSystemClasspathEntries != loader.getURLs().length) {
-
-            try {
-                reindex(loader.getURLs(), null);
-            } catch (Exception e) {
-                throw new IllegalStateException("could not initialize", e);
-            }
-        }
-        return classPathIndex;
+    protected static ClassLoader driverClassLoader() {
+        return DRIVER_CLASS_LOADER;
     }
 
     /**
-     * extend the classpath with one file or a directory with classes. (and
-     * reindex everything.
+     * @return the jandex index of the classpath and all jars or directories
+     * added with {@link #extendClasspath(File)}.
+     */
+    protected static synchronized IndexView classPathIndex() {
+        if (classPathIndex == null) {
+            List<IndexView> indexes = new ArrayList<>();
+            for (String entry : System.getProperty("java.class.path", "").split(File.pathSeparator)) {
+                if (!entry.isEmpty()) {
+                    try {
+                        indexes.add(index(new File(entry)));
+                    } catch (IOException e) {
+                        LOG.warn("could not index classpath entry " + entry, e);
+                    }
+                }
+            }
+            classPathIndex = CompositeIndex.create(indexes);
+        }
+        if (EXTENSION_INDEXES.isEmpty()) {
+            return classPathIndex;
+        }
+        List<IndexView> indexes = new ArrayList<>(EXTENSION_INDEXES);
+        indexes.add(classPathIndex);
+        return CompositeIndex.create(indexes);
+    }
+
+    /**
+     * extend the driver class loader with one jar file or a directory with
+     * classes.
      *
      * @param dirOrJar the directory or jar file
      * @return the index of the jar/directory file.
      */
-    protected static IndexView extendClasspath(File dirOrJar) {
+    protected static synchronized IndexView extendClasspath(File dirOrJar) {
         try {
-            URLClassLoader sysLoader = (URLClassLoader) ClassLoader.getSystemClassLoader();
-            URL[] urls = sysLoader.getURLs();
-            URL udir = dirOrJar.toURI().toURL();
-            String udirs = udir.toString();
-            for (URL url : urls) {
-                if (url.toString().equalsIgnoreCase(udirs)) {
-                    Indexer indexer = new Indexer();
-                    Result result = JarIndexer.createJarIndex(dirOrJar, indexer, false, false, false);
-                    return result.getIndex();
+            URL url = dirOrJar.toURI().toURL();
+            Index index = index(dirOrJar);
+            for (URL existing : DRIVER_CLASS_LOADER.getURLs()) {
+                if (existing.toString().equalsIgnoreCase(url.toString())) {
+                    return index;
                 }
             }
-            Class<URLClassLoader> sysClass = URLClassLoader.class;
-
-            Method method = sysClass.getDeclaredMethod("addURL", URL.class);
-            method.setAccessible(true);
-            method.invoke(sysLoader, udir);
-            return reindex(sysLoader.getURLs(), udir);
-        } catch (Exception e) {
-            throw new IllegalStateException("Could not include jar in the system classpath!", e);
+            DRIVER_CLASS_LOADER.addDriverURL(url);
+            EXTENSION_INDEXES.add(index);
+            return index;
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not include " + dirOrJar + " in the driver classpath!", e);
         }
     }
 
     /**
-     * index one file or directory using the specified indexer.
+     * index one jar file or directory, in memory.
      *
-     * @param file    the file to index.
+     * @param file the jar file or directory to index.
+     * @return the index, empty if the file is neither a jar nor a directory.
+     * @throws IOException if the jar could not be read.
+     */
+    private static Index index(File file) throws IOException {
+        Indexer indexer = new Indexer();
+        if (file.isDirectory()) {
+            indexDirectory(file, indexer);
+        } else if (file.isFile() && file.getName().endsWith(".jar")) {
+            try (JarFile jarFile = new JarFile(file)) {
+                Enumeration<JarEntry> entries = jarFile.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    if (entry.getName().endsWith(".class")) {
+                        try (InputStream in = jarFile.getInputStream(entry)) {
+                            indexer.index(in);
+                        } catch (Exception e) {
+                            LOG.debug("could not scan " + entry.getName() + " in " + file.getAbsolutePath(), e);
+                        }
+                    }
+                }
+            }
+        }
+        return indexer.complete();
+    }
+
+    /**
+     * index the class files of a directory recursively using the specified
+     * indexer.
+     *
+     * @param file    the file or directory to index.
      * @param indexer the indexer to use.
      */
-    private static void index(File file, Indexer indexer) {
+    private static void indexDirectory(File file, Indexer indexer) {
         if (file.isFile() && file.getName().endsWith(".class")) {
-            try {
-                FileInputStream in = new FileInputStream(file);
+            try (InputStream in = new FileInputStream(file)) {
                 indexer.index(in);
-                in.close();
             } catch (Exception e) {
                 LOG.error("could not scan " + file.getAbsolutePath());
             }
@@ -159,41 +211,33 @@ public final class Util {
             File[] files = file.listFiles();
             if (files != null) {
                 for (File child : files) {
-                    index(child, indexer);
+                    indexDirectory(child, indexer);
                 }
             }
         }
     }
 
     /**
-     * reindex the list of urls and return the index of the current url.
-     *
-     * @param urLs       the list of all urls
-     * @param currentUrl the url for with to return the index
-     * @return the index of the current url.
-     * @throws Exception if something seriun went wrong.
+     * class loader that can be extended with driver jars at runtime.
      */
-    private static IndexView reindex(URL[] urLs, URL currentUrl) throws Exception {
-        Index jarIndex = null;
-        Indexer indexer = new Indexer();
-        List<IndexView> indexes = new ArrayList<>();
-        for (URL url : urLs) {
-            File file = Util.toFile(url.toURI());
-            if (file != null) {
-                if (file.isDirectory()) {
-                    index(file, indexer);
-                    indexes.add(indexer.complete());
-                } else if (file.getName().endsWith("jar")) {
-                    Result result = JarIndexer.createJarIndex(file, indexer, false, false, false);
-                    indexes.add(result.getIndex());
-                    if (currentUrl != null && url.toString().equalsIgnoreCase(currentUrl.toString())) {
-                        jarIndex = result.getIndex();
-                    }
-                }
-            }
+    private static final class DriverClassLoader extends URLClassLoader {
+
+        static {
+            ClassLoader.registerAsParallelCapable();
         }
-        indexer.complete();
-        classPathIndex = CompositeIndex.create(indexes);
-        return jarIndex;
+
+        /**
+         * @param parent the parent class loader.
+         */
+        DriverClassLoader(ClassLoader parent) {
+            super(new URL[0], parent);
+        }
+
+        /**
+         * @param url the jar or directory url to add.
+         */
+        void addDriverURL(URL url) {
+            addURL(url);
+        }
     }
 }

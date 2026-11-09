@@ -88,6 +88,9 @@ public class INDIWebsocketAcceptor implements INDIServerAcceptor {
 
     @Override
     public void close() {
+        if (wss == null) {
+            return;
+        }
         wss.stop();
         wss = null;
     }
