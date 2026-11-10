@@ -39,12 +39,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.zip.DeflaterOutputStream;
 
+import static org.indilib.i4j.INDIDateFormat.dateFormat;
 import static nom.tam.fits.header.ObservationDurationDescription.EXPOSURE;
 import static nom.tam.fits.header.Standard.DATE_OBS;
 import static nom.tam.fits.header.Standard.INSTRUME;
@@ -73,11 +73,6 @@ public class INDICCDDriverExtension extends INDIDriverExtension<INDICCDDriver> {
      * max string length in fit header.
      */
     private static final int MAX_STRING_LENGTH_IN_FITS_HEADER = 67;
-
-    /**
-     * the date/time fomat iso-8601 as a simple date formatter.
-     */
-    private final SimpleDateFormat dateFormatISO8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
 
     /**
      * This property describes the sub frame of the ccd to capture.
@@ -480,7 +475,7 @@ public class INDICCDDriverExtension extends INDIDriverExtension<INDICCDDriver> {
         if (attributes != null) {
             for (Entry<String, Object> attribute : attributes.entrySet()) {
                 if (attribute.getValue() instanceof Date) {
-                    fitsHeader.addValue(attribute.getKey(), dateFormatISO8601.format((Date) attribute.getValue()), "");
+                    fitsHeader.addValue(attribute.getKey(), dateFormat().formatTimestamp((Date) attribute.getValue()), "");
                 } else if (attribute.getValue() instanceof String) {
                     String stringValue = (String) attribute.getValue();
                     String comment = "";
@@ -511,10 +506,10 @@ public class INDICCDDriverExtension extends INDIDriverExtension<INDICCDDriver> {
     }
 
     /**
-     * @return exposure start time in ISO 8601 format.
+     * @return exposure start time in ISO 8601 format, in UTC.
      */
     private String getExposureStartTime() {
-        return dateFormatISO8601.format(startExposureTime);
+        return dateFormat().formatTimestamp(startExposureTime);
     }
 
     /**

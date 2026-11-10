@@ -259,7 +259,7 @@ public class INDIDevice {
     public INDIProperty<?> waitForProperty(String propertyName, int maxWait) {
         INDIProperty<?> p = null;
 
-        long startTime = new Date().getTime();
+        long startTime = System.currentTimeMillis();
         boolean timeElapsed = false;
 
         while (p == null && !timeElapsed) {
@@ -273,7 +273,7 @@ public class INDIDevice {
                 }
             }
 
-            long endTime = new Date().getTime();
+            long endTime = System.currentTimeMillis();
 
             if ((endTime - startTime) / Constants.MILLISECONDS_IN_A_SECOND > maxWait) {
                 timeElapsed = true;

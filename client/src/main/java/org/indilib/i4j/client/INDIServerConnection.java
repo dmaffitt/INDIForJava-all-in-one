@@ -164,7 +164,7 @@ public class INDIServerConnection implements INDIProtocolParser {
     public INDIDevice waitForDevice(String deviceName, int maxWait) {
         INDIDevice d = null;
 
-        long startTime = new Date().getTime();
+        long startTime = System.currentTimeMillis();
         boolean timeElapsed = false;
 
         while (d == null && !timeElapsed) {
@@ -178,7 +178,7 @@ public class INDIServerConnection implements INDIProtocolParser {
                 }
             }
 
-            long endTime = new Date().getTime();
+            long endTime = System.currentTimeMillis();
 
             if ((endTime - startTime) / Constants.MILLISECONDS_IN_A_SECOND > maxWait) {
                 timeElapsed = true;
