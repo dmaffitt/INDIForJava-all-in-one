@@ -338,6 +338,16 @@ public final class INDIServer implements INDIServerInterface {
      * @param isBLOB       If the Property is a BLOB one.
      * @return A list of Clients that listen to a Property.
      */
+    @Override
+    public boolean anyClientAcceptsBLOB(String deviceName, String propertyName) {
+        for (INDIDeviceListener c : staticCopyOfClients()) {
+            if (c.listensToProperty(deviceName, propertyName) && c.isBLOBAccepted(deviceName, propertyName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     protected List<INDIDeviceListener> getClientsListeningToPropertyUpdates(String deviceName, String propertyName, boolean isBLOB) {
         List<INDIDeviceListener> list = new ArrayList<>();
         for (INDIDeviceListener c : staticCopyOfClients()) {

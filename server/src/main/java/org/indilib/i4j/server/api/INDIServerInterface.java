@@ -93,6 +93,17 @@ public interface INDIServerInterface {
     boolean isServerRunning();
 
     /**
+     * Whether any connected client has asked to receive a BLOB property's values (with
+     * enableBLOB Also or Only, for the device or the property). A driver that can deliver an
+     * image by another path can skip encoding the BLOB when nobody would be sent it.
+     *
+     * @param deviceName   the device
+     * @param propertyName the BLOB property
+     * @return true if at least one client would receive the BLOB
+     */
+    boolean anyClientAcceptsBLOB(String deviceName, String propertyName);
+
+    /**
      * start a java driver class by its class.
      *
      * @param cls the class
