@@ -38,9 +38,13 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 /**
  * Utility class for classpath and url funktions.
@@ -121,13 +125,11 @@ public final class Util {
     protected static synchronized IndexView classPathIndex() {
         if (classPathIndex == null) {
             List<IndexView> indexes = new ArrayList<>();
-            for (String entry : System.getProperty("java.class.path", "").split(File.pathSeparator)) {
-                if (!entry.isEmpty()) {
-                    try {
-                        indexes.add(index(new File(entry)));
-                    } catch (IOException e) {
-                        LOG.warn("could not index classpath entry " + entry, e);
-                    }
+            for (File entry : classPathEntries(System.getProperty("java.class.path", ""))) {
+                try {
+                    indexes.add(index(entry));
+                } catch (IOException e) {
+                    LOG.warn("could not index classpath entry " + entry, e);
                 }
             }
             classPathIndex = CompositeIndex.create(indexes);
@@ -138,6 +140,52 @@ public final class Util {
         List<IndexView> indexes = new ArrayList<>(EXTENSION_INDEXES);
         indexes.add(classPathIndex);
         return CompositeIndex.create(indexes);
+    }
+
+    /**
+     * @param classPath a classpath in the format of java.class.path.
+     * @return its entries, including the manifest Class-Path entries of its
+     * jars.
+     */
+    static Set<File> classPathEntries(String classPath) {
+        Set<File> entries = new LinkedHashSet<>();
+        for (String entry : classPath.split(File.pathSeparator)) {
+            if (!entry.isEmpty()) {
+                addClassPathEntry(new File(entry), entries);
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * add a classpath entry and, for jars, the entries of their manifest
+     * Class-Path, as used by "java -jar" and manifest-only jars.
+     *
+     * @param entry   the jar or directory.
+     * @param entries the entries found so far.
+     */
+    private static void addClassPathEntry(File entry, Set<File> entries) {
+        if (!entries.add(entry) || !entry.isFile() || !entry.getName().endsWith(".jar")) {
+            return;
+        }
+        try (JarFile jarFile = new JarFile(entry)) {
+            Manifest manifest = jarFile.getManifest();
+            String classPath = manifest == null ? null : manifest.getMainAttributes().getValue(Attributes.Name.CLASS_PATH);
+            if (classPath == null) {
+                return;
+            }
+            URI base = entry.getParentFile() == null ? new File(".").toURI() : entry.getParentFile().toURI();
+            for (String reference : classPath.trim().split("\\s+")) {
+                if (!reference.isEmpty()) {
+                    File referenced = toFile(base.resolve(reference));
+                    if (referenced != null) {
+                        addClassPathEntry(referenced, entries);
+                    }
+                }
+            }
+        } catch (IOException | IllegalArgumentException e) {
+            LOG.warn("could not read the manifest class path of " + entry, e);
+        }
     }
 
     /**
