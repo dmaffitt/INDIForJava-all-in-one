@@ -54,7 +54,6 @@ Build and install all modules with `mvn install`.
 
 - Simple Logging Facade for Java ([SLF4J](http://www.slf4j.org/)), [MIT license](http://www.slf4j.org/license.html)
 - Glassfish [Tyrus](https://tyrus-project.github.io/), [multiple licenses](https://tyrus-project.github.io/license.html)
-- [XStream](http://x-stream.github.io/), [BSD license](http://x-stream.github.io/license.html)
 - [Apache Commons Codec](https://commons.apache.org/proper/commons-codec/)
   , [Apache 2.0 license](https://github.com/apache/commons-codec/blob/master/LICENSE.txt)
 - [nom-tam-fits](https://github.com/nom-tam-fits/nom-tam-fits)

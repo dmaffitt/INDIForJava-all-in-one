@@ -28,20 +28,26 @@ import org.indilib.i4j.protocol.url.INDIURLStreamHandlerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.EOFException;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Input stream of INDIProtocol objects. deserialized from a xml stream.
+ * Reads INDI protocol objects from a stream of xml elements, using the
+ * streaming xml parser of the jdk. Elements that are not part of the protocol
+ * are skipped.
  *
  * @author Richard van Nieuwenhoven
  */
 public class INDIInputStreamImpl extends InputStream implements INDIInputStream {
 
     /**
-     * logger to log to.
+     * The logger to log to.
      */
     private static final Logger LOG = LoggerFactory.getLogger(INDIInputStreamImpl.class);
 
@@ -50,22 +56,53 @@ public class INDIInputStreamImpl extends InputStream implements INDIInputStream 
     }
 
     /**
-     * The xstream object input stream that deserializes the INDIProtocol
-     * objects.
+     * the xml input, the protocol elements wrapped in one root element.
      */
-    private final ObjectInputStream in;
+    private final InputStream in;
 
     /**
-     * create an INDI inputstream over an object input stream.
-     *
-     * @param in the object input stream
+     * the xml parser, created on the first read so that creating the stream
+     * never blocks.
      */
-    protected INDIInputStreamImpl(ObjectInputStream in) {
+    private XMLStreamReader xml;
+
+    /**
+     * true when the root element was read.
+     */
+    private boolean rootRead;
+
+    /**
+     * create an indi input stream.
+     *
+     * @param in the xml input, with the protocol elements wrapped in one root
+     *           element.
+     */
+    protected INDIInputStreamImpl(InputStream in) {
         this.in = in;
+    }
+
+    /**
+     * @return a parser that does not resolve external entities or dtds, the
+     * input comes from the network.
+     */
+    private static XMLInputFactory createInputFactory() {
+        XMLInputFactory factory = XMLInputFactory.newDefaultFactory();
+        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        factory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, false);
+        factory.setProperty(XMLInputFactory.IS_COALESCING, true);
+        return factory;
     }
 
     @Override
     public void close() throws IOException {
+        if (xml != null) {
+            try {
+                xml.close();
+            } catch (XMLStreamException e) {
+                LOG.debug("could not close the xml parser", e);
+            }
+        }
         in.close();
     }
 
@@ -75,16 +112,91 @@ public class INDIInputStreamImpl extends InputStream implements INDIInputStream 
     }
 
     @Override
-    public INDIProtocol<?> readObject() throws IOException {
+    public synchronized INDIProtocol<?> readObject() throws IOException {
         try {
-            INDIProtocol<?> readObject = (INDIProtocol<?>) in.readObject();
-            readObject.trim();
-            if (LOG.isTraceEnabled()) LOG.trace("received indi object " + readObject);
-            return readObject;
-        } catch (EOFException e) {
+            if (xml == null) {
+                xml = createInputFactory().createXMLStreamReader(new XmlDeclarationFilterReader(new InputStreamReader(in, StandardCharsets.UTF_8)));
+            }
+            while (xml.hasNext()) {
+                int event = xml.next();
+                if (event == XMLStreamConstants.START_ELEMENT) {
+                    if (!rootRead) {
+                        rootRead = true;
+                        continue;
+                    }
+                    INDIProtocol<?> message = INDIProtocolXml.newMessage(xml.getLocalName());
+                    if (message == null) {
+                        LOG.debug("skipping unknown element {}", xml.getLocalName());
+                        skipElement();
+                        continue;
+                    }
+                    readElement(message);
+                    message.trim();
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace("received indi object {}", message);
+                    }
+                    return message;
+                } else if (event == XMLStreamConstants.END_ELEMENT) {
+                    // the end of the root element: the end of the stream
+                    return null;
+                }
+            }
             return null;
-        } catch (Exception e) {
+        } catch (XMLStreamException | IllegalArgumentException e) {
             throw new IOException("could not deserialize xml", e);
+        }
+    }
+
+    /**
+     * read the attributes, text and children of the current element.
+     *
+     * @param protocol the protocol object to fill.
+     * @throws XMLStreamException if the xml is not well formed.
+     */
+    private void readElement(INDIProtocol<?> protocol) throws XMLStreamException {
+        for (int index = 0; index < xml.getAttributeCount(); index++) {
+            INDIProtocolXml.setAttribute(protocol, xml.getAttributeLocalName(index), xml.getAttributeValue(index));
+        }
+        StringBuilder text = new StringBuilder();
+        while (true) {
+            int event = xml.next();
+            switch (event) {
+                case XMLStreamConstants.START_ELEMENT -> {
+                    INDIProtocol<?> child = INDIProtocolXml.addChild(protocol, xml.getLocalName());
+                    if (child == null) {
+                        skipElement();
+                    } else {
+                        readElement(child);
+                    }
+                }
+                case XMLStreamConstants.CHARACTERS, XMLStreamConstants.CDATA, XMLStreamConstants.SPACE -> text.append(xml.getText());
+                case XMLStreamConstants.END_ELEMENT -> {
+                    if (INDIProtocolXml.hasText(protocol)) {
+                        INDIProtocolXml.setText(protocol, text.toString());
+                    }
+                    return;
+                }
+                default -> {
+                    // comments and processing instructions
+                }
+            }
+        }
+    }
+
+    /**
+     * skip the current element with everything in it.
+     *
+     * @throws XMLStreamException if the xml is not well formed.
+     */
+    private void skipElement() throws XMLStreamException {
+        int depth = 1;
+        while (depth > 0) {
+            int event = xml.next();
+            if (event == XMLStreamConstants.START_ELEMENT) {
+                depth++;
+            } else if (event == XMLStreamConstants.END_ELEMENT) {
+                depth--;
+            }
         }
     }
 }

@@ -103,6 +103,44 @@ class ProtocolXmlTest {
     }
 
     @Test
+    void readsTheOutputOfCIndiDrivers() throws IOException {
+        // verbatim from indi_simulator_telescope: an xml declaration before every message
+        List<INDIProtocol<?>> messages = parse("""
+                <?xml version='1.0'?>
+                <getProperties version='1.7' device='GPS Simulator' name='GEOGRAPHIC_COORD'/>
+                <?xml version='1.0'?>
+                <defSwitchVector
+                  device='Telescope Simulator'
+                  name='CONNECTION'
+                  label='Connection'
+                  group='Main Control'
+                  state='Idle'
+                  perm='rw'
+                  rule='OneOfMany'
+                  timeout='60'
+                  timestamp='2026-11-10T02:24:16'
+                >
+                  <defSwitch
+                    name='CONNECT'
+                    label='Connect'>
+                      Off
+                  </defSwitch>
+                  <defSwitch
+                    name='DISCONNECT'
+                    label='Disconnect'>
+                      On
+                  </defSwitch>
+                </defSwitchVector>
+                """);
+        assertEquals(2, messages.size());
+        assertEquals("GEOGRAPHIC_COORD", assertInstanceOf(GetProperties.class, messages.get(0)).getName());
+        DefSwitchVector connection = assertInstanceOf(DefSwitchVector.class, messages.get(1));
+        assertEquals("Telescope Simulator", connection.getDevice());
+        assertEquals("OneOfMany", connection.getRule());
+        assertEquals("On", connection.getElements().get(1).getTextContent());
+    }
+
+    @Test
     void readsSeveralMessagesFromOneStream() throws IOException {
         List<INDIProtocol<?>> messages = parse("""
                 <defSwitchVector device="CCD" name="CONNECTION" state="Ok" perm="rw" rule="OneOfMany">
@@ -258,9 +296,28 @@ class ProtocolXmlTest {
     }
 
     @Test
-    void refusesClassesOutsideTheProtocol() {
-        // the parser reads untrusted network input, it must not instantiate arbitrary classes
-        assertThrows(IOException.class, () -> parse("<java.io.File><path>/tmp</path></java.io.File>"));
-        assertThrows(IOException.class, () -> parse("<java.lang.ProcessBuilder><command><string>id</string></command></java.lang.ProcessBuilder>"));
+    void skipsElementsOutsideTheProtocol() throws IOException {
+        // the parser reads untrusted network input: only protocol classes are ever created, anything
+        // else (including messages of newer protocol versions) is skipped and the stream goes on
+        List<INDIProtocol<?>> messages = parse("<java.io.File><path>/tmp</path></java.io.File>"
+                + "<pingRequest uid=\"1\"/>"
+                + "<setNumberVector device=\"D\" name=\"N\" unknownAttribute=\"x\"><oneNumber name=\"n\">1</oneNumber><unknownChild>2</unknownChild></setNumberVector>"
+                + "<getProperties version=\"1.7\"/>");
+        assertEquals(2, messages.size());
+        SetNumberVector vector = assertInstanceOf(SetNumberVector.class, messages.get(0));
+        assertEquals(1, vector.getElements().size());
+        assertInstanceOf(GetProperties.class, messages.get(1));
+    }
+
+    @Test
+    void doesNotResolveEntities() {
+        // no document type definitions, so no external entities (XXE) and no entity expansion
+        assertThrows(IOException.class, () -> parse("<!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/passwd\">]><message message=\"&e;\"/>"));
+        assertThrows(IOException.class, () -> parse("<message message=\"&undefined;\"/>"));
+    }
+
+    @Test
+    void malformedXmlFails() {
+        assertThrows(IOException.class, () -> parse("<message message=\"unclosed/>"));
     }
 }

@@ -22,20 +22,12 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import com.thoughtworks.xstream.converters.extended.ToAttributedValueConverter;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @param <T> type for the builder
  * @author Richard van Nieuwenhoven
  */
-@XStreamConverter(value = ToAttributedValueConverter.class, strings = {
-        "textContent"
-}, types = {
-        OneElement.class
-})
 public abstract class OneElement<T> extends INDIProtocol<T> {
 
     /**

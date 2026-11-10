@@ -22,14 +22,11 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("setBLOBVector")
 public class SetBlobVector extends SetVector<SetBlobVector> {
 
     @Override

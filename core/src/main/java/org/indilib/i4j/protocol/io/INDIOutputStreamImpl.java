@@ -22,7 +22,6 @@ package org.indilib.i4j.protocol.io;
  * #L%
  */
 
-import com.thoughtworks.xstream.core.util.CustomObjectOutputStream;
 import org.indilib.i4j.protocol.INDIProtocol;
 import org.indilib.i4j.protocol.api.INDIOutputStream;
 import org.indilib.i4j.protocol.url.INDIURLStreamHandlerFactory;
@@ -31,16 +30,19 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 
 /**
- * OutPut stream of INDIProtocol objects. Serialized to a xml stream.
+ * Writes INDI protocol objects as xml elements, one after the other.
  *
  * @author Richard van Nieuwenhoven
  */
 public class INDIOutputStreamImpl extends OutputStream implements INDIOutputStream {
 
     /**
-     * logger to log to.
+     * The logger to log to.
      */
     private static final Logger LOG = LoggerFactory.getLogger(INDIOutputStreamImpl.class);
 
@@ -49,21 +51,21 @@ public class INDIOutputStreamImpl extends OutputStream implements INDIOutputStre
     }
 
     /**
-     * The xstream serializer.
+     * the writer for the xml.
      */
-    private final CustomObjectOutputStream out;
+    private final Writer out;
 
     /**
-     * Constructor of the indi output stream.
+     * create an indi output stream.
      *
-     * @param out the underlaying stream
+     * @param out the stream to write the xml to.
      */
-    protected INDIOutputStreamImpl(CustomObjectOutputStream out) {
-        this.out = out;
+    protected INDIOutputStreamImpl(OutputStream out) {
+        this.out = new OutputStreamWriter(out, StandardCharsets.UTF_8);
     }
 
     @Override
-    public void close() throws IOException {
+    public synchronized void close() throws IOException {
         out.close();
     }
 
@@ -74,10 +76,12 @@ public class INDIOutputStreamImpl extends OutputStream implements INDIOutputStre
 
     @Override
     public synchronized void writeObject(INDIProtocol<?> element) throws IOException {
+        StringBuilder xml = new StringBuilder();
+        INDIProtocolXml.write(element, xml);
         if (LOG.isTraceEnabled()) {
-            LOG.trace("sending indi object " + element);
+            LOG.trace("sending indi object {} {}", element.getClass().getSimpleName(), xml);
         }
-        out.writeObject(element);
+        out.write(xml.toString());
         out.flush();
     }
 }

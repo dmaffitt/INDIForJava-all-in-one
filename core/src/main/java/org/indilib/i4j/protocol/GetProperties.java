@@ -22,27 +22,21 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamAsAttribute;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("getProperties")
 public class GetProperties extends INDIProtocol<GetProperties> {
 
     /**
      * the property attribute of the element.
      */
-    @XStreamAsAttribute
     private String property;
 
     /**
      * the version attribute of the element.
      */
-    @XStreamAsAttribute
     private String version;
 
     /**

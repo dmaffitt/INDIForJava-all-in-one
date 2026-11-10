@@ -1,5 +1,5 @@
 /**
- * This package provides the indi xml protokol io funktions for xstream.
+ * This package provides the streams that read and write the indi xml protocol.
  *
  * @author Richard van Nieuwenhoven
  */
