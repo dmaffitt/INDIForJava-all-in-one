@@ -116,6 +116,14 @@ public interface INDIServerInterface {
     void loadJavaDriver(String identifier, Function<INDIConnection, ? extends INDIDriver> factory) throws INDIException;
 
     /**
+     * Destroys the Java driver(s) loaded under an identifier (see {@link #loadJavaDriver(String, Function)}):
+     * the driver is told it is being destroyed, its connection closed and the device removed.
+     *
+     * @param identifier the identifier the driver was loaded under
+     */
+    void destroyJavaDriver(String identifier);
+
+    /**
      * start a java driver class by its class.
      *
      * @param cls the class

@@ -131,6 +131,9 @@ public class INDISocketConnection implements INDIConnection {
 
     @Override
     public void close() throws IOException {
+        if (socket.isClosed()) {
+            return; // the other side (or a reader) closed it already: nothing left to shut down
+        }
         socket.shutdownInput();
         try {
             if (inputStream != null) {

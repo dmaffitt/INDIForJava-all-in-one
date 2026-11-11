@@ -115,8 +115,12 @@ public abstract class INDIServerSocketAcceptor implements INDIServerAcceptor {
                 clientSocket = socket.accept();
             } catch (IOException e) {
                 // This is usually the escape point of the thread when the
-                // server is stopped.
-                acceptorLog.error("Server has stopped listening to new Client connections", e);
+                // server is stopped: expected then, an error otherwise.
+                if (socket.isClosed()) {
+                    acceptorLog.info("Server has stopped listening to new Client connections");
+                } else {
+                    acceptorLog.error("Server has stopped listening to new Client connections", e);
+                }
                 mainThreadRunning = false;
                 return; // The thread will stop
             }

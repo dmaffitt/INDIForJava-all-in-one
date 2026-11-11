@@ -226,6 +226,15 @@ public final class INDIServer implements INDIServerInterface {
         if (baseAcceptor != null) {
             baseAcceptor.close();
         }
+        // Destroy the devices, so their drivers release what they hold (a camera, a port) and a
+        // server started afterwards can load them again.
+        for (INDIDevice device : staticCopyOfDevices()) {
+            try {
+                device.destroy();
+            } catch (RuntimeException e) {
+                LOG.warn("problem destroying device " + device, e);
+            }
+        }
         for (INDIDeviceListener indiDeviceListener : staticCopyOfClients()) {
             if (indiDeviceListener instanceof INDIClient) {
                 try {
@@ -607,6 +616,11 @@ public final class INDIServer implements INDIServerInterface {
      *
      * @param deviceIdentifier The device identifier.
      */
+    @Override
+    public synchronized void destroyJavaDriver(String identifier) {
+        destroyIdentifiedDrivers(identifier);
+    }
+
     private synchronized void destroyIdentifiedDrivers(String deviceIdentifier) {
         for (INDIDevice device : getDevicesWithIdentifier(deviceIdentifier)) {
             device.destroy();
