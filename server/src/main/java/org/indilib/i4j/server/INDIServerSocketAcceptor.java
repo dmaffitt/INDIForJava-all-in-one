@@ -164,7 +164,11 @@ public abstract class INDIServerSocketAcceptor implements INDIServerAcceptor {
      */
     private synchronized boolean bind() {
         try {
-            socket = new ServerSocket(getListeningPort());
+            // Reuse the address: a port a client connection just left in TIME_WAIT, or a server just
+            // stopped, can be bound again at once instead of failing as busy for a minute.
+            socket = new ServerSocket();
+            socket.setReuseAddress(true);
+            socket.bind(new java.net.InetSocketAddress(getListeningPort()));
         } catch (IOException e) {
             acceptorLog().error("Could not listen on port: " + listeningPort + " (maybe busy)");
             return false;
