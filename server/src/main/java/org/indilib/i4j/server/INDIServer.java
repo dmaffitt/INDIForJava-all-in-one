@@ -709,6 +709,14 @@ public final class INDIServer implements INDIServerInterface {
      *                   FUTURE.
      * @throws INDIException If there is any problem instantiating the Driver.
      */
+    @Override
+    public synchronized void loadJavaDriver(String identifier, java.util.function.Function<INDIConnection, ? extends INDIDriver> factory) throws INDIException {
+        if (isAlreadyLoaded(identifier)) {
+            throw new INDIException("A driver with identifier '" + identifier + "' is already loaded");
+        }
+        addDevice(new INDIJavaDevice(this, identifier, factory));
+    }
+
     private synchronized void loadJavaDriver(Class<?> cls, String identifier) throws INDIException {
         INDIJavaDevice newDevice = new INDIJavaDevice(this, cls, identifier);
 

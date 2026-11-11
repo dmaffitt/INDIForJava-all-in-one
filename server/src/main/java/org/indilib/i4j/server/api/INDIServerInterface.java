@@ -23,10 +23,12 @@ package org.indilib.i4j.server.api;
  */
 
 import org.indilib.i4j.INDIException;
+import org.indilib.i4j.driver.INDIDriver;
 import org.indilib.i4j.protocol.api.INDIConnection;
 
 import java.net.URL;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * The core indi server interface. over this interface the server can be
@@ -102,6 +104,16 @@ public interface INDIServerInterface {
      * @return true if at least one client would receive the BLOB
      */
     boolean anyClientAcceptsBLOB(String deviceName, String propertyName);
+
+    /**
+     * Loads a Java driver made by a factory, under an identifier of the caller's choosing, so one
+     * driver class can be loaded several times for several devices.
+     *
+     * @param identifier a unique identifier for the device (see {@link #isAlreadyLoaded})
+     * @param factory    makes the driver on the connection it is given
+     * @throws INDIException if the identifier is already loaded or the factory fails
+     */
+    void loadJavaDriver(String identifier, Function<INDIConnection, ? extends INDIDriver> factory) throws INDIException;
 
     /**
      * start a java driver class by its class.

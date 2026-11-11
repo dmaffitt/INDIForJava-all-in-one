@@ -36,6 +36,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * A class that represent a Java Device (created with the INDI Driver library).
@@ -102,6 +103,34 @@ public class INDIJavaDevice extends INDIDevice {
             LOG.error("Problem instantiating driver (not an INDI for Java Driver?)", ex);
             throw new INDIException("Problem instantiating driver (not an INDI for Java Driver?)", ex);
         }
+        driver.startListening();
+    }
+
+    /**
+     * A Java driver made by a factory rather than by its (INDIConnection) constructor, so one
+     * driver class can serve several devices, each built with what it needs (which camera, say).
+     *
+     * @param server     The server.
+     * @param identifier A unique identifier for this device.
+     * @param factory    Makes the driver on the connection it is given.
+     * @throws INDIException If the factory fails or does not return a driver.
+     */
+    protected INDIJavaDevice(INDIServer server, String identifier, Function<INDIConnection, ? extends INDIDriver> factory) throws INDIException {
+        super(server);
+        names = new ArrayList<>();
+        this.identifier = identifier;
+        INDIPipedConnections connections = new INDIPipedConnections();
+        driverConnection = connections.first();
+        try {
+            driver = factory.apply(connections.second());
+        } catch (RuntimeException ex) {
+            LOG.error("Problem making driver", ex);
+            throw new INDIException("Problem making driver: " + ex.getMessage(), ex);
+        }
+        if (driver == null) {
+            throw new INDIException("The driver factory returned null");
+        }
+        this.driverClass = driver.getClass();
         driver.startListening();
     }
 
