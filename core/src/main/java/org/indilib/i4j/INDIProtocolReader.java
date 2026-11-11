@@ -77,6 +77,11 @@ public class INDIProtocolReader extends Thread {
                  !this.stop && readObject != null; readObject = inputStream.readObject()) {
                 parser.processProtocolMessage(readObject);
             }
+            // The other side closed the stream (readObject gave null): the parser must learn of it
+            // just as it does of a read error, or a client never notices its server is gone.
+            if (!this.stop) {
+                parser.finishReader();
+            }
         } catch (Exception e) {
             LOG.error("could not parse indi stream", e);
             if (inputStream != null) {
