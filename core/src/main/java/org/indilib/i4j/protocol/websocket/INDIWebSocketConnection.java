@@ -64,6 +64,12 @@ public class INDIWebSocketConnection implements INDIConnection {
     private INDIInputStream inputStream;
 
     /**
+     * set once the reading side closed its pipe: data still arriving then is
+     * no longer wanted.
+     */
+    private volatile boolean inputClosed;
+
+    /**
      * the indi protocol output stream.
      */
     private INDIOutputStream ouputStream;
@@ -105,7 +111,14 @@ public class INDIWebSocketConnection implements INDIConnection {
      * @throws IOException if some streams where instable.
      */
     protected void createINDIInputStream() throws IOException {
-        PipedInputStream bytesIn = new PipedInputStream();
+        PipedInputStream bytesIn = new PipedInputStream() {
+
+            @Override
+            public void close() throws IOException {
+                inputClosed = true;
+                super.close();
+            }
+        };
         final PipedOutputStream bytesOut = new PipedOutputStream(bytesIn);
 
         inputStream = INDIProtocolFactory.createINDIInputStream(bytesIn);
@@ -116,6 +129,11 @@ public class INDIWebSocketConnection implements INDIConnection {
                 bytesOut.write(message);
                 bytesOut.flush();
             } catch (IOException e) {
+                if (inputClosed) {
+                    // the other side sent this before it learned of the close.
+                    LOG.debug("dropped websocket data received after the input was closed");
+                    return;
+                }
                 LOG.error("cound not create INDI input stream on websocket endpoint", e);
                 try {
                     close();
