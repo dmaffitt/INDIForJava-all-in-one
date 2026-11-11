@@ -1,9 +1,5 @@
 package org.indilib.i4j.protocol;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import com.thoughtworks.xstream.converters.extended.ToAttributedValueConverter;
-
 /*
  * #%L
  * INDI Protocol implementation
@@ -31,12 +27,6 @@ import com.thoughtworks.xstream.converters.extended.ToAttributedValueConverter;
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("enableBLOB")
-@XStreamConverter(value = ToAttributedValueConverter.class, strings = {
-        "textContent"
-}, types = {
-        EnableBLOB.class
-})
 public class EnableBLOB extends INDIProtocol<EnableBLOB> {
 
     /**

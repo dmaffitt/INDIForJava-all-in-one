@@ -55,7 +55,7 @@ public final class INDIServerAccessLookup {
     /**
      * @return the global indi server access interface.
      */
-    public static INDIServerAccess indiServerAccess() {
+    public static synchronized INDIServerAccess indiServerAccess() {
         if (serviceLoader == null) {
             serviceLoader = ServiceLoader.load(INDIServerAccess.class);
         }

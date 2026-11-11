@@ -56,7 +56,10 @@ import org.slf4j.LoggerFactory;
 
 import java.text.NumberFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 
 import static org.indilib.i4j.Constants.PropertyStates.*;
@@ -110,13 +113,12 @@ public abstract class INDITelescope extends INDIDriver implements INDIConnection
      */
     private static final Logger LOG = LoggerFactory.getLogger(INDITelescope.class);
     /**
-     * First variant of the iso time format.
+     * The time formats a client may send the UTC time in.
      */
-    private final SimpleDateFormat extractISOTimeFormat1 = new SimpleDateFormat("yyyy/MM/dd'T'HH:mm:ss");
-    /**
-     * Second variant of the iso time format.
-     */
-    private final SimpleDateFormat extractISOTimeFormat2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+    private static final DateTimeFormatter[] ISO_TIME_FORMATS = {
+            DateTimeFormatter.ofPattern("yyyy/MM/dd'T'HH:mm:ss"),
+            DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    };
     /**
      * Standard property for the pointing direction of the scope.
      */
@@ -337,22 +339,24 @@ public abstract class INDITelescope extends INDIDriver implements INDIConnection
     }
 
     /**
-     * convert an iso time string to a java date.
+     * convert an iso time string in UTC to a java date.
      *
-     * @param isoTime the String representing the date.
-     * @return the java date representation of the isoTime String.
+     * @param isoTime the String representing the date in UTC.
+     * @return the java date representation of the isoTime String, null if
+     * it could not be parsed.
      */
-    private synchronized Date extractISOTime(String isoTime) {
-        try {
-            return extractISOTimeFormat1.parse(isoTime);
-        } catch (ParseException e) {
-            try {
-                return extractISOTimeFormat2.parse(isoTime);
-            } catch (ParseException e1) {
-                INDITelescope.LOG.error("could not parse date: " + isoTime);
-                return null;
+    private Date extractISOTime(String isoTime) {
+        if (isoTime != null) {
+            for (DateTimeFormatter format : ISO_TIME_FORMATS) {
+                try {
+                    return Date.from(LocalDateTime.parse(isoTime.trim(), format).toInstant(ZoneOffset.UTC));
+                } catch (DateTimeParseException e) {
+                    // try the next format
+                }
             }
         }
+        INDITelescope.LOG.error("could not parse date: {}", isoTime);
+        return null;
     }
 
     /**

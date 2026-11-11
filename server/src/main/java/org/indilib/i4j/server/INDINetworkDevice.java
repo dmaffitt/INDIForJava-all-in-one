@@ -31,9 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A class that represent a Network Device (another INDI server).
@@ -79,7 +79,7 @@ public class INDINetworkDevice extends INDIDevice {
     protected INDINetworkDevice(INDIServer server, String host, int port) throws INDIException {
         super(server);
 
-        names = new ArrayList<>();
+        names = new CopyOnWriteArrayList<>();
 
         this.host = host;
         this.port = port;

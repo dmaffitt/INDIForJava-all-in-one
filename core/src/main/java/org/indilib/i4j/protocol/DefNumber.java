@@ -22,46 +22,31 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamAsAttribute;
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import com.thoughtworks.xstream.converters.extended.ToAttributedValueConverter;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("defNumber")
-@XStreamConverter(value = ToAttributedValueConverter.class, strings = {
-        "textContent"
-}, types = {
-        DefElement.class
-})
 public class DefNumber extends DefElement<DefNumber> {
 
     /**
      * the format element attribute.
      */
-    @XStreamAsAttribute
     private String format;
 
     /**
      * the max element attribute.
      */
-    @XStreamAsAttribute
     private String max;
 
     /**
      * the min element attribute.
      */
-    @XStreamAsAttribute
     private String min;
 
     /**
      * The step element attribute.
      */
-    @XStreamAsAttribute
     private String step;
 
     /**

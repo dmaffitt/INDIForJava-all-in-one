@@ -22,21 +22,16 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamAsAttribute;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("defSwitchVector")
 public class DefSwitchVector extends DefVector<DefSwitchVector> {
 
     /**
      * the rule element attribute.
      */
-    @XStreamAsAttribute
     private String rule;
 
     @Override

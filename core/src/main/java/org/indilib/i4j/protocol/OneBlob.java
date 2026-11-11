@@ -22,21 +22,11 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import com.thoughtworks.xstream.converters.extended.ToAttributedValueConverter;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("oneBLOB")
-@XStreamConverter(value = ToAttributedValueConverter.class, strings = {
-        "byteContent"
-}, types = {
-        OneBlob.class
-})
 public class OneBlob extends OneElement<OneBlob> {
 
     /**
@@ -102,6 +92,18 @@ public class OneBlob extends OneElement<OneBlob> {
      */
     public String getSize() {
         return size;
+    }
+
+    /**
+     * set the size attribute: the size of the data before compression, so it
+     * differs from the byte count of compressed blobs.
+     *
+     * @param newSize the new size value
+     * @return this for builder pattern.
+     */
+    public OneBlob setSize(String newSize) {
+        size = newSize;
+        return this;
     }
 
     @Override

@@ -1,5 +1,5 @@
 /**
- * This package provides the indi xml protokol api interfaces for xstream.
+ * This package provides the api interfaces of the indi xml protocol streams.
  *
  * @author Richard van Nieuwenhoven
  */

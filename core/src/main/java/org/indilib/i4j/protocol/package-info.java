@@ -1,5 +1,5 @@
 /**
- * This package provides the indi xml protokol definition for xstream.
+ * This package provides the indi xml protocol definition.
  *
  * @author Richard van Nieuwenhoven
  */

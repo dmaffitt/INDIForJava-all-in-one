@@ -42,6 +42,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * This extension provides the active_device property with all possible values.
@@ -179,7 +181,7 @@ public class ActiveDeviceExtension extends INDIDriverExtension<INDIDriver> {
         // if a ':' is in the device name the name is surly an url.
         if (!elementValue.trim().isEmpty() && elementValue.indexOf(':') > 0) {
             try {
-                URL parsedUrl = new URL(elementValue.trim());
+                URL parsedUrl = new URI(elementValue.trim()).toURL();
                 if (!currentServer.isLocalURL(parsedUrl)) {
                     int port = parsedUrl.getPort();
                     if (port < 1) {
@@ -193,7 +195,7 @@ public class ActiveDeviceExtension extends INDIDriverExtension<INDIDriver> {
                     }
                 }
                 indiDeviceName = getDeviceFromUrl(parsedUrl);
-            } catch (MalformedURLException e) {
+            } catch (MalformedURLException | URISyntaxException | IllegalArgumentException e) {
                 String errorMessage = "not a legal url \"" + elementValue.trim() + "\" using the current server.";
                 LOG.error(errorMessage);
                 driver.updateProperty(activeDevices, errorMessage);

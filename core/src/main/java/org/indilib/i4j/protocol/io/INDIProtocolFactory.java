@@ -22,103 +22,43 @@ package org.indilib.i4j.protocol.io;
  * #L%
  */
 
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.core.util.CustomObjectOutputStream;
-import com.thoughtworks.xstream.io.HierarchicalStreamDriver;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import com.thoughtworks.xstream.io.StatefulWriter;
-import com.thoughtworks.xstream.io.xml.XppDriver;
-import org.indilib.i4j.protocol.*;
+import org.indilib.i4j.protocol.INDIProtocol;
 import org.indilib.i4j.protocol.api.INDIInputStream;
 import org.indilib.i4j.protocol.api.INDIOutputStream;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.SequenceInputStream;
 import java.util.Enumeration;
-import java.util.Map;
 
 /**
- * Xstream definitions factory for the indi protocol.
+ * Factory for the streams of the indi xml protocol.
  *
  * @author Richard van Nieuwenhoven
  */
 public final class INDIProtocolFactory {
 
     /**
-     * Buffer to use for the core in and output streams.
+     * buffer size to use for the in and output stream.
      */
     private static final int BUFFER_SIZE = 16 * 1024;
 
     /**
-     * bytes for a dummy root close tag.
-     */
-    private static final byte[] CLOSE_BYTES = "</X>".getBytes();
-
-    /**
-     * bytes for a dummy root open tag.
+     * The INDI protocol has no root element, the input is wrapped in this one.
      */
     private static final byte[] OPEN_BYTES = "<X>".getBytes();
 
     /**
-     * the XSTREAM driver to use.
+     * the end of the root element.
      */
-    private static final HierarchicalStreamDriver STREAM_DRIVER;
+    private static final byte[] CLOSE_BYTES = "</X>".getBytes();
 
     /**
-     * static cache of the XSTREAM INDI protokol instance.
-     */
-    private static final XStream XSTREAM;
-
-    static {
-        STREAM_DRIVER = new XppDriver() {
-            @Override
-            public HierarchicalStreamWriter createWriter(Writer out) {
-                return new Printwriter(out);
-            }
-        };
-        XSTREAM = new XStream(STREAM_DRIVER);
-        // XStream 1.4.18+ refuses to deserialize classes outside its allow-list.
-        XSTREAM.allowTypesByWildcard(new String[]{"org.indilib.i4j.protocol.**"});
-        XSTREAM.processAnnotations(new Class<?>[]{
-                DefBlob.class,
-                DefBlobVector.class,
-                DefElement.class,
-                DefLight.class,
-                DefLightVector.class,
-                DefNumber.class,
-                DefNumberVector.class,
-                DefSwitch.class,
-                DefSwitchVector.class,
-                DefText.class,
-                DefTextVector.class,
-                DefVector.class,
-                DelProperty.class,
-                EnableBLOB.class,
-                GetProperties.class,
-                INDIProtocol.class,
-                Message.class,
-                NewBlobVector.class,
-                NewLightVector.class,
-                NewNumberVector.class,
-                NewSwitchVector.class,
-                NewTextVector.class,
-                NewVector.class,
-                OneBlob.class,
-                OneElement.class,
-                OneLight.class,
-                OneNumber.class,
-                OneText.class,
-                OneSwitch.class,
-                SetBlobVector.class,
-                SetLightVector.class,
-                SetNumberVector.class,
-                SetSwitchVector.class,
-                SetTextVector.class,
-                SetVector.class
-        });
-    }
-
-    /**
-     * untility class never instanciated.
+     * utility class.
      */
     private INDIProtocolFactory() {
     }
@@ -131,7 +71,7 @@ public final class INDIProtocolFactory {
      * @throws IOException when something went wrong with the underlaying intput stream.
      */
     public static INDIInputStream createINDIInputStream(InputStream in) throws IOException {
-        return new INDIInputStreamImpl(XSTREAM.createObjectInputStream(inputStreamWithRootTag(new BufferedInputStream(new MinimalBlockinInputStream(in), BUFFER_SIZE))));
+        return new INDIInputStreamImpl(inputStreamWithRootTag(new BufferedInputStream(new MinimalBlockinInputStream(in), BUFFER_SIZE)));
     }
 
     /**
@@ -142,43 +82,14 @@ public final class INDIProtocolFactory {
      * @throws IOException when something went wrong with the underlaying output stream.
      */
     public static INDIOutputStream createINDIOutputStream(OutputStream out) throws IOException {
-        final StatefulWriter statefulWriter = new StatefulWriter(STREAM_DRIVER.createWriter(new BufferedOutputStream(out, BUFFER_SIZE)));
-        return new INDIOutputStreamImpl(new CustomObjectOutputStream(new CustomObjectOutputStream.StreamCallback() {
-            @Override
-            public void close() {
-                if (statefulWriter.state() != StatefulWriter.STATE_CLOSED) {
-                    statefulWriter.close();
-                }
-            }
-
-            @Override
-            public void defaultWriteObject() throws NotActiveException {
-                throw new NotActiveException("not in call to writeObject");
-            }
-
-            @Override
-            public void flush() {
-                statefulWriter.flush();
-            }
-
-            @Override
-            public void writeFieldsToStream(Map fields) throws NotActiveException {
-                throw new NotActiveException("not in call to writeObject");
-            }
-
-            @Override
-            public void writeToStream(Object object) {
-                XSTREAM.marshal(object, statefulWriter);
-            }
-        }));
+        return new INDIOutputStreamImpl(new BufferedOutputStream(out, BUFFER_SIZE));
     }
 
     /**
-     * create an combined input stream around the input stream parameter that
-     * creates a root tag around the xml parts in the input stream.
+     * wrap the input stream in a root element.
      *
-     * @param in the underlying input stream where the xml's will be read.
-     * @return the resulting input stream
+     * @param in the input stream
+     * @return the input stream between a root start and end tag.
      */
     private static InputStream inputStreamWithRootTag(final InputStream in) {
         Enumeration<InputStream> streamEnum = new Enumeration<InputStream>() {
@@ -202,22 +113,20 @@ public final class INDIProtocolFactory {
     }
 
     /**
-     * nice toString for the protocol objects.
-     *
      * @param protocol the protocol object.
-     * @return the toString.
+     * @return the class name and the xml of the protocol object, for logging.
      */
     public static String toString(INDIProtocol<?> protocol) {
-        return protocol.getClass().getSimpleName() + " " + XSTREAM.toXML(protocol);
+        return protocol.getClass().getSimpleName() + " " + toXml(protocol);
     }
 
     /**
-     * simple toXml for the protocol objects.
-     *
      * @param protocol the protocol object.
-     * @return the toString.
+     * @return the xml of the protocol object.
      */
     public static String toXml(INDIProtocol<?> protocol) {
-        return XSTREAM.toXML(protocol);
+        StringBuilder xml = new StringBuilder();
+        INDIProtocolXml.write(protocol, xml);
+        return xml.toString();
     }
 }

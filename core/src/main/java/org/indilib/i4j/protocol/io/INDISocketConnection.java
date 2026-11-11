@@ -37,6 +37,8 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Indi protocol connection around a tcp/ip socket.
@@ -166,8 +168,8 @@ public class INDISocketConnection implements INDIConnection {
     @Override
     public URL getURL() {
         try {
-            return new URL(getProtocol(), socket.getInetAddress().getHostAddress(), socket.getPort(), "/");
-        } catch (MalformedURLException e) {
+            return new URI(getProtocol(), null, socket.getInetAddress().getHostAddress(), socket.getPort(), "/", null, null).toURL();
+        } catch (MalformedURLException | URISyntaxException e) {
             LOG.error("illegal std url, should never happen!", e);
             return null;
         }

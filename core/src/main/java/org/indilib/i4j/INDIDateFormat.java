@@ -22,97 +22,98 @@ package org.indilib.i4j;
  * #L%
  */
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 
 /**
- * A simple class to format and parse INDI timestamps. Attention:
- * SimpleDateFormat is not thread save, that's why this is a per thread singleton.
+ * Formats and parses the timestamps of the INDI protocol. They are in UTC,
+ * whatever the time zone of the machine, in the format
+ * yyyy-MM-ddTHH:mm:ss with an optional fraction of a second.
  *
  * @author S. Alonso (Zerjillo) [zerjioi at ugr.es]
  */
 public final class INDIDateFormat {
 
     /**
-     * Thread local current, to protect the simple date formatters against multi
-     * treading problems.
+     * the format for writing timestamps.
      */
-    private static final ThreadLocal<INDIDateFormat> format = new ThreadLocal<>();
+    private static final DateTimeFormatter FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     /**
-     * The first possible format for INDI timestamps.
+     * the instance, java.time formatters are thread safe.
      */
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+    private static final INDIDateFormat INSTANCE = new INDIDateFormat();
 
     /**
-     * The second possible format for INDI timestamps.
-     */
-    private final SimpleDateFormat dateFormat2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-
-    /**
-     * A private constructor to avoid instantiating this utility class.
+     * private constructor, use {@link #dateFormat()}.
      */
     private INDIDateFormat() {
-
     }
 
     /**
-     * @return the INDIDateformat for the current thread.
+     * @return the INDI date format.
      */
     public static INDIDateFormat dateFormat() {
-        INDIDateFormat result = format.get();
-        if (result == null) {
-            result = new INDIDateFormat();
-            format.set(result);
-        }
-        return result;
+        return INSTANCE;
     }
 
     /**
-     * Parses a timestamp expressed in the INDI format. If the timestamp does
-     * not have the correct format it returns the current timestamp.
+     * Parses a timestamp. Missing or invalid timestamps return the current
+     * time.
      *
-     * @param time the timestamp to be parsed
-     * @return the parsed timestamp or the current timestamp if the format of
-     * the <code>time</code> is not correct.
+     * @param time the timestamp, in UTC.
+     * @return the parsed instant.
+     */
+    public Instant parseInstant(final String time) {
+        if (time != null && !time.isEmpty()) {
+            String utc = time.trim();
+            if (utc.endsWith("Z")) {
+                utc = utc.substring(0, utc.length() - 1);
+            }
+            try {
+                return LocalDateTime.parse(utc, DateTimeFormatter.ISO_LOCAL_DATE_TIME).toInstant(ZoneOffset.UTC);
+            } catch (DateTimeParseException e) {
+                // Not correct format, returning current timestamp.
+            }
+        }
+        return Instant.now();
+    }
+
+    /**
+     * Parses a timestamp. Missing or invalid timestamps return the current
+     * time.
+     *
+     * @param time the timestamp, in UTC.
+     * @return the parsed date.
      */
     public Date parseTimestamp(final String time) {
-        Date timestamp;
-        if (time != null && !time.isEmpty()) {
-            try {
-                timestamp = dateFormat.parse(time);
-            } catch (ParseException e) {
-                try {
-                    timestamp = dateFormat2.parse(time);
-                } catch (ParseException ee) {
-                    timestamp = new Date(); // Not correct format, returning
-                    // current timestamp.
-                }
-            }
-        } else {
-            timestamp = new Date();
-        }
-        return timestamp;
+        return Date.from(parseInstant(time));
     }
 
     /**
-     * Formats a timestamp according to the INDI format.
-     *
-     * @param timestamp the timestamp to be formmated
-     * @return the formatted timestamp
+     * @param timestamp the instant to format.
+     * @return the timestamp in UTC, with milliseconds.
+     */
+    public String formatInstant(final Instant timestamp) {
+        return FORMAT.format(timestamp);
+    }
+
+    /**
+     * @param timestamp the date to format.
+     * @return the timestamp in UTC, with milliseconds.
      */
     public String formatTimestamp(final Date timestamp) {
-        return dateFormat.format(timestamp);
+        return formatInstant(timestamp.toInstant());
     }
 
     /**
-     * Gets the current timestamp in form of a String according to the INDI
-     * specification.
-     *
-     * @return the current timestamp according to the INDI specification.
+     * @return the current time as a timestamp.
      */
     public String getCurrentTimestamp() {
-        return formatTimestamp(new Date());
+        return formatInstant(Instant.now());
     }
 }

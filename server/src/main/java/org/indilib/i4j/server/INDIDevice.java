@@ -177,10 +177,8 @@ public abstract class INDIDevice extends INDIDeviceListener implements INDIDevic
      * @param elem The XML element from which to extract the name of the Device.
      */
     private void checkName(INDIProtocol<?> elem) {
-        String newName = elem.getDevice();
-
-        if (!newName.isEmpty()) {
-            dealWithPossibleNewDeviceName(newName);
+        if (elem.hasDevice()) {
+            dealWithPossibleNewDeviceName(elem.getDevice());
         }
     }
 
@@ -190,15 +188,7 @@ public abstract class INDIDevice extends INDIDeviceListener implements INDIDevic
      * @param xml The <code>defXXXVector</code> XML message
      */
     private void processDefXXXVector(DefVector<?> xml) {
-        String device = xml.getDevice();
-
-        if (device.isEmpty()) {
-            return;
-        }
-
-        String property = xml.getName().trim();
-
-        if (property.isEmpty()) {
+        if (!xml.hasDevice() || !xml.hasName() || xml.getState() == null) {
             return;
         }
 
@@ -243,13 +233,7 @@ public abstract class INDIDevice extends INDIDeviceListener implements INDIDevic
     private void processSetXXXVector(SetVector<?> xml) {
         String device = xml.getDevice();
 
-        if (!hasName(device)) { // Some conditions to ignore the messages
-            return;
-        }
-
-        String property = xml.getName().trim();
-
-        if (property.isEmpty()) {
+        if (!hasName(device) || !xml.hasName()) { // Some conditions to ignore the messages
             return;
         }
 

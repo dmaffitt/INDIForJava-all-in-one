@@ -13,7 +13,6 @@ package org.indilib.i4j.protocol;
  * <http://www.gnu.org/licenses/lgpl-3.0.html>. #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAsAttribute;
 import org.indilib.i4j.protocol.io.INDIProtocolFactory;
 import org.indilib.i4j.protocol.url.INDIURLStreamHandlerFactory;
 
@@ -33,25 +32,21 @@ public abstract class INDIProtocol<T> {
     /**
      * the device element attribute.
      */
-    @XStreamAsAttribute
     private String device;
 
     /**
      * the name element attribute.
      */
-    @XStreamAsAttribute
     private String name;
 
     /**
      * the message element attribute.
      */
-    @XStreamAsAttribute
     private String message;
 
     /**
      * the timestamp attribute of the element.
      */
-    @XStreamAsAttribute
     private String timestamp;
 
     /**

@@ -27,8 +27,15 @@ import org.indilib.i4j.protocol.api.INDIConnection;
 import org.indilib.i4j.protocol.api.INDIInputStream;
 import org.indilib.i4j.protocol.api.INDIOutputStream;
 import org.indilib.i4j.protocol.io.INDIProcessConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A class that represent a Native Device (created with the usual INDI library).
@@ -39,6 +46,16 @@ import java.io.IOException;
 public class INDINativeDevice extends INDIDevice {
 
     /**
+     * Logger to log to.
+     */
+    private static final Logger LOG = LoggerFactory.getLogger(INDINativeDevice.class);
+
+    /**
+     * How long to wait for the driver process to exit before killing it.
+     */
+    private static final long DESTROY_TIMEOUT_SECONDS = 2;
+
+    /**
      * The path of the Driver (that will be launched).
      */
     private String driverPath;
@@ -47,7 +64,7 @@ public class INDINativeDevice extends INDIDevice {
      * The name of the device. May be null if it has not been discovered through
      * a <code>defXXXVector</code> message.
      */
-    private String name;
+    private volatile String name;
 
     /**
      * The process that will be launched to start the Driver.
@@ -75,16 +92,43 @@ public class INDINativeDevice extends INDIDevice {
         this.driverPath = driverPath;
 
         try {
-            process = Runtime.getRuntime().exec(driverPath);
+            process = new ProcessBuilder(command(driverPath)).start();
             processConnection = new INDIProcessConnection(process);
         } catch (IOException e) {
-            throw new INDIException("Problem executing " + driverPath);
+            throw new INDIException("Problem executing " + driverPath, e);
         }
+    }
+
+    /**
+     * @param driverPath the path of the driver, optionally followed by
+     *                   whitespace separated arguments.
+     * @return the command to start the driver; an existing file is used as is,
+     * so paths may contain spaces.
+     */
+    private static List<String> command(String driverPath) {
+        if (new File(driverPath).isFile()) {
+            return Collections.singletonList(driverPath);
+        }
+        return Arrays.asList(driverPath.trim().split("\\s+"));
     }
 
     @Override
     public void closeConnections() {
+        try {
+            processConnection.close();
+        } catch (IOException e) {
+            LOG.warn("close connection error", e);
+        }
         process.destroy();
+        try {
+            if (!process.waitFor(DESTROY_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                LOG.warn("Native driver " + driverPath + " did not exit, killing it");
+                process.destroyForcibly();
+            }
+        } catch (InterruptedException e) {
+            process.destroyForcibly();
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override

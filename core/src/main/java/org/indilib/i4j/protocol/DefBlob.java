@@ -22,21 +22,11 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import com.thoughtworks.xstream.converters.extended.ToAttributedValueConverter;
-
 /**
  * This class represents an INDI XML protocol element.
  *
  * @author Richard van Nieuwenhoven
  */
-@XStreamAlias("defBLOB")
-@XStreamConverter(value = ToAttributedValueConverter.class, strings = {
-        "textContent"
-}, types = {
-        DefElement.class
-})
 public class DefBlob extends DefElement<DefBlob> {
 
     @Override

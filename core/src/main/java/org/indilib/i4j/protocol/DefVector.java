@@ -13,9 +13,6 @@ package org.indilib.i4j.protocol;
  * <http://www.gnu.org/licenses/lgpl-3.0.html>. #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAsAttribute;
-import com.thoughtworks.xstream.annotations.XStreamImplicit;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,37 +27,31 @@ public abstract class DefVector<T> extends INDIProtocol<T> {
     /**
      * the group element attribute.
      */
-    @XStreamAsAttribute
     private String group;
 
     /**
      * the label element attribute.
      */
-    @XStreamAsAttribute
     private String label;
 
     /**
      * the perm element attribute.
      */
-    @XStreamAsAttribute
     private String perm;
 
     /**
      * the state element attribute.
      */
-    @XStreamAsAttribute
     private String state;
 
     /**
      * the timeout element attribute.
      */
-    @XStreamAsAttribute
     private String timeout;
 
     /**
      * the child elements of the vector.
      */
-    @XStreamImplicit
     private List<DefElement<?>> elements;
 
     /**

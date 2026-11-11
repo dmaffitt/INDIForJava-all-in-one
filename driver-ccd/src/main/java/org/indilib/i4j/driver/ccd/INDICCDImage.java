@@ -28,6 +28,8 @@ import java.io.DataOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.io.IOException;
+import nom.tam.util.FitsOutputStream;
 
 import static nom.tam.fits.header.Standard.*;
 
@@ -141,7 +143,7 @@ public abstract class INDICCDImage {
      */
     private void convertToFits() throws FitsException {
         f = new Fits();
-        BasicHDU<?> imageFits = FitsFactory.HDUFactory(getImageData());
+        BasicHDU<?> imageFits = Fits.makeHDU(getImageData());
         addFitsAttributes(imageFits);
         f.addHDU(imageFits);
     }
@@ -237,7 +239,14 @@ public abstract class INDICCDImage {
      */
     public void write(DataOutputStream os, int left, int top, int subWidth, int subHeigth, String extension) throws FitsException {
         if ("fits".equals(extension)) {
-            asFitsImage().write(os);
+            // the caller owns the stream, so flush but do not close it.
+            FitsOutputStream out = new FitsOutputStream(os);
+            try {
+                asFitsImage().write(out);
+                out.flush();
+            } catch (IOException e) {
+                throw new FitsException("could not write fits image", e);
+            }
         } else {
             throw new IllegalArgumentException("extention " + extension + " not supported");
         }

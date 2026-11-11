@@ -27,6 +27,9 @@ import org.indilib.i4j.protocol.api.INDIInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.EOFException;
+import java.net.SocketException;
+
 /**
  * A class that reads from a input stream and sends the read messages to a
  * parser.
@@ -48,7 +51,7 @@ public class INDIProtocolReader extends Thread {
     /**
      * Used to friendly stop the reader.
      */
-    private boolean stop;
+    private volatile boolean stop;
 
     /**
      * Creates the reader.
@@ -69,30 +72,47 @@ public class INDIProtocolReader extends Thread {
         INDIInputStream inputStream = null;
         try {
             inputStream = parser.getInputStream();
-            if (inputStream == null) {
-                parser.finishReader();
-                return;
-            }
-            for (INDIProtocol<?> readObject = inputStream.readObject();
-                 !this.stop && readObject != null; readObject = inputStream.readObject()) {
-                parser.processProtocolMessage(readObject);
-            }
-            // The other side closed the stream (readObject gave null): the parser must learn of it
-            // just as it does of a read error, or a client never notices its server is gone.
-            if (!this.stop) {
-                parser.finishReader();
+            if (inputStream != null) {
+                for (INDIProtocol<?> readObject = inputStream.readObject();
+                     !this.stop && readObject != null; readObject = inputStream.readObject()) {
+                    parser.processProtocolMessage(readObject);
+                }
             }
         } catch (Exception e) {
-            LOG.error("could not parse indi stream", e);
+            if (stop) {
+                LOG.debug(getName() + " stopped", e);
+            } else if (isEndOfStream(e)) {
+                LOG.info(getName() + ": connection closed");
+            } else {
+                LOG.error("could not parse indi stream", e);
+            }
+        } finally {
+            // however the reader ends (a read error, or the other side closing
+            // the stream), the parser must be told, or it is never removed from
+            // the server and a client never notices its server is gone.
             if (inputStream != null) {
                 try {
                     inputStream.close();
                 } catch (Exception ex) {
-                    LOG.error("Could not close inputStream", ex);
+                    LOG.debug("Could not close inputStream", ex);
                 }
             }
             parser.finishReader();
         }
+    }
+
+    /**
+     * @param e the exception that ended the reader.
+     * @return true if the exception just means the other side closed the
+     * connection.
+     */
+    private static boolean isEndOfStream(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof EOFException || cause instanceof SocketException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

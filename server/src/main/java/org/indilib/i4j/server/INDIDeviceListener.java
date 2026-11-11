@@ -27,8 +27,8 @@ import org.indilib.i4j.INDIProtocolParser;
 import org.indilib.i4j.protocol.GetProperties;
 import org.indilib.i4j.protocol.INDIProtocol;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A class that represents a listener to devices. It is used to include both
@@ -53,7 +53,7 @@ public abstract class INDIDeviceListener implements INDIProtocolParser {
     /**
      * Determines if the object listens to all devices.
      */
-    private boolean listenToAllDevices;
+    private volatile boolean listenToAllDevices;
 
     /**
      * A list of properties that are listened.
@@ -66,9 +66,11 @@ public abstract class INDIDeviceListener implements INDIProtocolParser {
     protected INDIDeviceListener() {
         listenToAllDevices = false;
 
-        devicesToListen = new ArrayList<>();
-        propertiesToListen = new ArrayList<>();
-        bLOBEnableRules = new ArrayList<>();
+        // written by the reader of this listener, read by the readers of all
+        // devices.
+        devicesToListen = new CopyOnWriteArrayList<>();
+        propertiesToListen = new CopyOnWriteArrayList<>();
+        bLOBEnableRules = new CopyOnWriteArrayList<>();
     }
 
     /**

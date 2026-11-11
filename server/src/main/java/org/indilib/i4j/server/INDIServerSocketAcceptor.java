@@ -52,12 +52,12 @@ public abstract class INDIServerSocketAcceptor implements INDIServerAcceptor {
     /**
      * If <code>true</code> the mainThread will continue running.
      */
-    private boolean mainThreadRunning;
+    private volatile boolean mainThreadRunning;
 
     /**
      * The socket to which the Server listens.
      */
-    private ServerSocket socket;
+    private volatile ServerSocket socket;
 
     /**
      * constructor for the basic server socket acceptor.
@@ -92,34 +92,24 @@ public abstract class INDIServerSocketAcceptor implements INDIServerAcceptor {
      */
     @Override
     public void run() {
-        Class<?> loggerClass = getClass();
-        while (loggerClass.getName().indexOf('$') >= 0) {
-            loggerClass = loggerClass.getSuperclass();
-        }
-        final Logger acceptorLog = LoggerFactory.getLogger(loggerClass);
-        try {
-            socket = new ServerSocket(getListeningPort());
-        } catch (IOException e) {
-            acceptorLog.error("Could not listen on port: " + listeningPort + " (maybe busy)");
+        final Logger acceptorLog = acceptorLog();
+        if (socket == null && !bind()) {
             return; // The thread will stop
         }
-
-        acceptorLog.info("Listening to port " + listeningPort);
-
-        mainThreadRunning = true;
+        ServerSocket serverSocket = socket;
 
         while (mainThreadRunning) {
             Socket clientSocket;
 
             try {
-                clientSocket = socket.accept();
+                clientSocket = serverSocket.accept();
             } catch (IOException e) {
                 // This is usually the escape point of the thread when the
                 // server is stopped: expected then, an error otherwise.
-                if (socket.isClosed()) {
-                    acceptorLog.info("Server has stopped listening to new Client connections");
-                } else {
+                if (mainThreadRunning) {
                     acceptorLog.error("Server has stopped listening to new Client connections", e);
+                } else {
+                    acceptorLog.info("Stopped listening to port " + listeningPort);
                 }
                 mainThreadRunning = false;
                 return; // The thread will stop
@@ -155,16 +145,54 @@ public abstract class INDIServerSocketAcceptor implements INDIServerAcceptor {
         return mainThreadRunning;
     }
 
+    /**
+     * @return the logger named after the concrete acceptor class, anonymous
+     * subclasses use their superclass.
+     */
+    private Logger acceptorLog() {
+        Class<?> loggerClass = getClass();
+        while (loggerClass.getName().indexOf('$') >= 0) {
+            loggerClass = loggerClass.getSuperclass();
+        }
+        return LoggerFactory.getLogger(loggerClass);
+    }
+
+    /**
+     * open the server socket.
+     *
+     * @return true if the socket is listening.
+     */
+    private synchronized boolean bind() {
+        try {
+            socket = new ServerSocket(getListeningPort());
+        } catch (IOException e) {
+            acceptorLog().error("Could not listen on port: " + listeningPort + " (maybe busy)");
+            return false;
+        }
+        acceptorLog().info("Listening to port " + listeningPort);
+        mainThreadRunning = true;
+        return true;
+    }
+
+    /**
+     * Binds the socket before returning, so host, port and running state are
+     * valid as soon as start returns; the connections are accepted in a new
+     * thread.
+     */
     @Override
-    public void start() {
-        if (!mainThreadRunning) {
-            Thread serverThread = new Thread(this);
+    public synchronized void start() {
+        if (!mainThreadRunning && bind()) {
+            Thread serverThread = new Thread(this, getName() + " acceptor " + listeningPort);
             serverThread.start();
         }
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        mainThreadRunning = false;
+        if (socket == null) {
+            return;
+        }
         try {
             socket.close();
         } catch (IOException e) {
@@ -174,12 +202,14 @@ public abstract class INDIServerSocketAcceptor implements INDIServerAcceptor {
 
     @Override
     public String getHost() {
-        return socket.getInetAddress().getHostName();
+        ServerSocket current = socket;
+        return current == null ? null : current.getInetAddress().getHostName();
     }
 
     @Override
     public int getPort() {
-        return socket.getLocalPort();
+        ServerSocket current = socket;
+        return current == null ? getListeningPort() : current.getLocalPort();
     }
 
     @Override

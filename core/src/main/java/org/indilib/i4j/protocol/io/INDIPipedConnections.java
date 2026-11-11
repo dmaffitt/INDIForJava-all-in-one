@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.net.URI;
 
 /**
  * Create two connected INDI protocol streams that have a blocking connection,
@@ -99,9 +100,17 @@ public final class INDIPipedConnections {
          */
         private final INDIOutputStream outputStream;
         /**
+         * the queue this connection reads from.
+         */
+        private final LinkedBlockingQueue<INDIProtocol<?>> inputQueue;
+        /**
+         * the queue this connection writes to.
+         */
+        private final LinkedBlockingQueue<INDIProtocol<?>> outputQueue;
+        /**
          * a closed indicator to indicate the connection was closed.
          */
-        private boolean closed = false;
+        private volatile boolean closed = false;
 
         /**
          * constructor of the piped connection with the in and out blocking
@@ -112,6 +121,8 @@ public final class INDIPipedConnections {
          */
         public INDIPipedConnection(final LinkedBlockingQueue<INDIProtocol<?>> inputQueue,
                                    final LinkedBlockingQueue<INDIProtocol<?>> outputQueue) {
+            this.inputQueue = inputQueue;
+            this.outputQueue = outputQueue;
             inputStream = new INDIPipedInputStream(inputQueue, this);
             outputStream = new INDIPipedOutputStream(outputQueue, this);
         }
@@ -120,8 +131,15 @@ public final class INDIPipedConnections {
          * close the connection.
          */
         @Override
-        public void close() {
+        public synchronized void close() {
+            if (closed) {
+                return;
+            }
             closed = true;
+            // the end marker tells the other side the pipe is closed, and wakes
+            // up our own reader if it is waiting for input.
+            outputQueue.offer(new INDIProtokolEndMarker());
+            inputQueue.offer(new INDIProtokolEndMarker());
         }
 
         @Override
@@ -144,7 +162,7 @@ public final class INDIPipedConnections {
         @Override
         public URL getURL() {
             try {
-                return new URL("indi:///?pipe");
+                return URI.create("indi:///?pipe").toURL();
             } catch (MalformedURLException e) {
                 LOG.error("illegal std url, should never happen!", e);
                 return null;
@@ -231,11 +249,6 @@ public final class INDIPipedConnections {
         @Override
         public void close() throws IOException {
             connection.close();
-            try {
-                outputQueue.put(new INDIProtokolEndMarker());
-            } catch (InterruptedException e) {
-                LOG.error("closing on a closed stream, ignoring it", e);
-            }
         }
 
         @Override

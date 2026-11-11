@@ -22,9 +22,6 @@ package org.indilib.i4j.protocol;
  * #L%
  */
 
-import com.thoughtworks.xstream.annotations.XStreamAsAttribute;
-import com.thoughtworks.xstream.annotations.XStreamImplicit;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,19 +36,16 @@ public abstract class NewVector<T> extends INDIProtocol<T> {
     /**
      * the child elements of the vector.
      */
-    @XStreamImplicit
     private List<OneElement<?>> elements;
 
     /**
      * the state attribute of the element.
      */
-    @XStreamAsAttribute
     private String state;
 
     /**
      * the timeout attribute of the element.
      */
-    @XStreamAsAttribute
     private String timeout;
 
     /**
