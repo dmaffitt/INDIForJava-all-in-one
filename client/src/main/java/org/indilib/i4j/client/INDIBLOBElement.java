@@ -38,7 +38,7 @@ public class INDIBLOBElement extends INDIElement {
     /**
      * The current value of the BLOB Element.
      */
-    private INDIBLOBValue value;
+    private volatile INDIBLOBValue value;
 
     /**
      * The current desired value of the BLOB Element.

@@ -48,7 +48,7 @@ public class INDINumberElement extends INDIElement {
     /**
      * The current value of this Number Element.
      */
-    private double value;
+    private volatile double value;
 
     /**
      * The current desired value for the Element.

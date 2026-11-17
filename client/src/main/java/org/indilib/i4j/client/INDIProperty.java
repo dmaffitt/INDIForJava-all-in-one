@@ -374,6 +374,16 @@ public abstract class INDIProperty<Element extends INDIElement> implements Itera
      * Property. If there are new desired values for any Elements the XML code
      * to produce the change is sent to the INDI Driver. If communication is
      * successful the state of the property is set to "Busy".
+     * <p>
+     * The listeners are not told of that Busy: it is this client's own guess, not the driver's
+     * word, and a caller that waits for the driver's answer by counting updates would otherwise
+     * have to discount it. They hear the driver's updates only.
+     * <p>
+     * Not atomic: setting the desired values and sending them are separate steps, so two threads
+     * changing the same property at once could have their values mixed into one message (each
+     * sends whatever desired values are set when it sends). Callers serialize their requests per
+     * property. A method taking all the values and sending them in one step would rule it out; if
+     * values ever arrive at a driver mixed or missing, look here first.
      *
      * @throws INDIValueException if some of the desired values are not correct or if the
      *                            Property is Read Only.
@@ -393,7 +403,7 @@ public abstract class INDIProperty<Element extends INDIElement> implements Itera
             }
         }
         if (changedElements > 0) {
-            setState(PropertyStates.BUSY);
+            state = PropertyStates.BUSY; // not setState: the listeners hear the driver's updates, not this guess
             xml.setDevice(getDevice().getName());
             xml.setName(getName());
             xml.setTimestamp(dateFormat().getCurrentTimestamp());

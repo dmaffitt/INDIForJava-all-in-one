@@ -37,7 +37,7 @@ public class INDITextElement extends INDIElement {
     /**
      * The current value of the Text Element.
      */
-    private String value;
+    private volatile String value;
 
     /**
      * The current desired value for the Text Element.

@@ -1,5 +1,15 @@
 # INDIForJava library changelog
 
+- Fork (dmaffitt), client:
+    - An update writes the element values before the state, and the state is volatile, so a reader
+      that sees the new state sees the values that came with it.
+    - Element values are volatile: written on the connection's reader thread, read on any other.
+    - `sendChangesToDriver` sets the property Busy without telling the listeners; they hear only the
+      driver's updates. A client that waited by counting updates no longer discounts its own send.
+    - Known, not changed: setting desired values and sending them are separate steps, so two threads
+      changing one property at once can have their values mixed into one message. Serialize requests
+      per property; see `INDIProperty.sendChangesToDriver`.
+
 - Version 2.0 (2020-2021):
     - Fixed some minor bugs in the client and driver modules
     - Merged `i4j-base` and `i4j-protocol` into the `core` module

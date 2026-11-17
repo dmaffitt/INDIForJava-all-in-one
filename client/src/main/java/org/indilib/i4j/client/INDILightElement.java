@@ -44,7 +44,7 @@ public class INDILightElement extends INDIElement {
     /**
      * Current State value for this Light Element.
      */
-    private LightStates state;
+    private volatile LightStates state;
 
     /**
      * A UI component that can be used in graphical interfaces for this Light

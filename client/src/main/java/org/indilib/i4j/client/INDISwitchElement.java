@@ -45,7 +45,7 @@ public class INDISwitchElement extends INDIElement {
     /**
      * Current Status value for this Switch Element.
      */
-    private SwitchStatus status;
+    private volatile SwitchStatus status;
 
     /**
      * Current desired status value for this Switch Element.
