@@ -68,9 +68,10 @@ public abstract class INDIProperty<Element extends INDIElement> implements Itera
      */
     private String group;
     /**
-     * The current state of this Property.
+     * The current state of this Property. Volatile, and written last in an update, after the
+     * values, so a reader on another thread that sees the new state sees the values with it.
      */
-    private PropertyStates state = PropertyStates.IDLE;
+    private volatile PropertyStates state = PropertyStates.IDLE;
     /**
      * The permission of this Property.
      */
@@ -153,10 +154,6 @@ public abstract class INDIProperty<Element extends INDIElement> implements Itera
      */
     protected void update(SetVector<?> xml, Class<?> childNodesType) {
         try {
-            String sta = xml.getState();
-            if (!(sta.length() == 0)) {
-                setState(sta);
-            }
             String to = xml.getTimeout();
             if ((to != null) && (!to.isEmpty())) {
                 setTimeout(to);
@@ -172,6 +169,12 @@ public abstract class INDIProperty<Element extends INDIElement> implements Itera
                         iel.setValue(element);
                     }
                 }
+            }
+            // The state last: a reader that sees the new state (a move done, a request answered)
+            // must see the new values with it, not the ones from before this update.
+            String sta = xml.getState();
+            if (!(sta.length() == 0)) {
+                setState(sta);
             }
         } catch (IllegalArgumentException e) {
             // If there was some problem parsing then set to alert
