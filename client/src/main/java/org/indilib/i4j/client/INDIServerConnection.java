@@ -357,31 +357,23 @@ public class INDIServerConnection implements INDIProtocolParser {
      * @param xml The element to be parsed.
      */
     private void deleteProperty(DelProperty xml) {
-        if (xml.hasDevice()) {
-            String deviceName = xml.getDevice();
-            INDIDevice d = getDevice(deviceName);
-            if (d != null) {
-                String propertyName = xml.getName();
-
-                if (propertyName != null && !propertyName.isEmpty()) {
-                    d.deleteProperty(xml);
-                } else {
-                    deleteDevice(d);
-                }
-            } else {
-                deleteAllDevices();
-            }
+        if (!xml.hasDevice()) {
+            return;
         }
-    }
-
-    /**
-     * Deletes all the Devices from the Connection and notifies the listeners.
-     */
-    private void deleteAllDevices() {
-        Iterator<INDIDevice> devs = devices.values().iterator();
-        while (!devs.hasNext()) {
-            deleteDevice(devs.next());
+        INDIDevice d = getDevice(xml.getDevice());
+        if (d == null) {
+            // a device this connection does not have, or no longer has: nothing to delete
+            return;
         }
+        String propertyName = xml.getName();
+        if (propertyName == null) {
+            // no name at all: the whole device is gone (its driver ended)
+            deleteDevice(d);
+        } else if (!propertyName.trim().isEmpty()) {
+            d.deleteProperty(xml);
+        }
+        // a name given but empty is a driver's property it never named (indi_pegasus_ppba's
+        // PowerWarnLP, deleted as it disconnects from its box), not the device: ignored
     }
 
     /**
