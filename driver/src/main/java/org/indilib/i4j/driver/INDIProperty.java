@@ -479,7 +479,7 @@ public abstract class INDIProperty<Element extends INDIElement<?>> implements Se
         result.setState(Constants.getPropertyStateAsString(getState()));
         result.setTimeout(Integer.toString(getTimeout()));
         result.setTimestamp(dateFormat().getCurrentTimestamp());
-        if (message == null) {
+        if (message != null) { // was == null: no update carried its message
             result.setMessage(message);
         }
         for (INDIElement<Element> element : this) {
